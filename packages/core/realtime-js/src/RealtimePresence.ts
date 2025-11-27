@@ -11,7 +11,7 @@ type PresenceOnJoinCallback = (key?: string, currentPresence?: any, newPresence?
 
 type PresenceOnLeaveCallback = (key?: string, currentPresence?: any, newPresence?: any) => void
 
-interface PresenceOpts {
+export type RealtimePresenceOptions = {
   events?: { state: string; diff: string } | undefined
 }
 
@@ -99,7 +99,7 @@ export default class RealtimePresence {
    */
   constructor(
     public channel: RealtimeChannel,
-    opts?: PresenceOpts
+    opts?: RealtimePresenceOptions
   ) {
     const events = opts?.events || {
       state: 'presence_state',
