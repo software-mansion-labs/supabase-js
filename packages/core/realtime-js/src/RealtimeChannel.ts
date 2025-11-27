@@ -1,4 +1,4 @@
-import { CHANNEL_EVENTS, CHANNEL_STATES, MAX_PUSH_BUFFER_SIZE } from './lib/constants'
+import { CHANNEL_EVENTS, CHANNEL_STATES, ChannelState, MAX_PUSH_BUFFER_SIZE } from './lib/constants'
 import Push from './lib/push'
 import type RealtimeClient from './RealtimeClient'
 import Timer from './lib/timer'
@@ -171,7 +171,7 @@ export default class RealtimeChannel {
     }[]
   } = {}
   timeout: number
-  state: CHANNEL_STATES = CHANNEL_STATES.closed
+  state: ChannelState = CHANNEL_STATES.closed
   joinedOnce = false
   joinPush: Push
   rejoinTimer: Timer
