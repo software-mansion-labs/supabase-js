@@ -3,8 +3,19 @@
   License: https://github.com/phoenixframework/phoenix/blob/d344ec0a732ab4ee204215b31de69cf4be72e3bf/LICENSE.md
 */
 
-import type { PresenceOpts, PresenceOnJoinCallback, PresenceOnLeaveCallback } from 'phoenix'
 import type RealtimeChannel from './RealtimeChannel'
+
+// ------------------------------------------------------------
+// FIXME: It is temporary since we are not using @types/phoenix
+type PresenceOnJoinCallback = (key?: string, currentPresence?: any, newPresence?: any) => void
+
+type PresenceOnLeaveCallback = (key?: string, currentPresence?: any, newPresence?: any) => void
+
+interface PresenceOpts {
+  events?: { state: string; diff: string } | undefined
+}
+
+// ------------------------------------------------------------
 
 type Presence<T extends { [key: string]: any } = {}> = {
   presence_ref: string
