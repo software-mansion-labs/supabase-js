@@ -6,7 +6,11 @@ import Push from 'phoenix/priv/static/push'
 import { CONNECTION_STATE, CHANNEL_STATES, ChannelState } from './constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import type { RealtimeClientOptions } from '../RealtimeClient'
-import type { RealtimePresenceOptions } from '../RealtimePresence'
+import type {
+  RealtimePresenceOptions,
+  RealtimePresenceState,
+  Presence as RealtimePresenceType,
+} from '../RealtimePresence'
 
 export class SocketAdapter {
   private socket: Socket
@@ -184,8 +188,8 @@ export class PresenceAdapter {
     this.presence = new Presence(channel.getChannel(), phoenixOptions)
   }
 
-  get state(): State {
-    return this.presence.state
+  get state(): RealtimePresenceState {
+    return transformState(this.presence.state)
   }
 
   onJoin(callback: OnJoin): void {
@@ -206,6 +210,55 @@ export class PresenceAdapter {
   getPresence(): Presence {
     return this.presence
   }
+}
+
+/**
+ * Remove 'metas' key
+ * Change 'phx_ref' to 'presence_ref'
+ * Remove 'phx_ref' and 'phx_ref_prev'
+ *
+ * @example
+ * // returns {
+ *  abc123: [
+ *    { presence_ref: '2', user_id: 1 },
+ *    { presence_ref: '3', user_id: 2 }
+ *  ]
+ * }
+ * RealtimePresence.transformState({
+ *  abc123: {
+ *    metas: [
+ *      { phx_ref: '2', phx_ref_prev: '1' user_id: 1 },
+ *      { phx_ref: '3', user_id: 2 }
+ *    ]
+ *  }
+ * })
+ *
+ */
+function transformState(state: State): RealtimePresenceState {
+  state = cloneDeep(state)
+
+  return Object.getOwnPropertyNames(state).reduce((newState, key) => {
+    const presences = state[key]
+
+    if ('metas' in presences) {
+      newState[key] = presences.metas.map((presence) => {
+        presence['presence_ref'] = presence['phx_ref']
+
+        delete presence['phx_ref']
+        delete presence['phx_ref_prev']
+
+        return presence
+      }) as RealtimePresenceType[]
+    } else {
+      newState[key] = presences
+    }
+
+    return newState
+  }, {} as RealtimePresenceState)
+}
+
+function cloneDeep(obj: { [key: string]: any }) {
+  return JSON.parse(JSON.stringify(obj))
 }
 
 function phoenixPresenceOptions(opts?: RealtimePresenceOptions): { events: Events } | undefined {

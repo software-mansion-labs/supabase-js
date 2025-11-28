@@ -19,6 +19,7 @@ import Timer from './lib/timer'
 import { httpEndpointURL } from './lib/transformers'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
+import { SocketAdapter } from './lib/phoenixAdapter'
 
 type Fetch = typeof fetch
 
@@ -100,6 +101,7 @@ const WORKER_SCRIPT = `
   });`
 
 export default class RealtimeClient {
+  socketAdapter: SocketAdapter
   accessTokenValue: string | null = null
   apiKey: string | null = null
   channels: RealtimeChannel[] = new Array()
@@ -187,6 +189,7 @@ export default class RealtimeClient {
     this._initializeOptions(options)
     this._setupReconnectionTimer()
     this.fetch = this._resolveFetch(options?.fetch)
+    this.socketAdapter = new SocketAdapter(this.endPoint, options)
   }
 
   /**

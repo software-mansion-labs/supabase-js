@@ -10,6 +10,7 @@ import type {
 } from './RealtimePresence'
 import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
+import { ChannelAdapter } from './lib/phoenixAdapter'
 
 type ReplayOption = {
   since: number
@@ -180,6 +181,7 @@ export default class RealtimeChannel {
   broadcastEndpointURL: string
   subTopic: string
   private: boolean
+  channelAdapter: ChannelAdapter
 
   /**
    * Creates a channel that can broadcast messages, sync presence, and listen to Postgres changes.
@@ -264,6 +266,8 @@ export default class RealtimeChannel {
     if (!this.private && this.params.config?.broadcast?.replay) {
       throw `tried to use replay on public channel '${this.topic}'. It must be a private channel.`
     }
+
+    this.channelAdapter = new ChannelAdapter(this.socket.socketAdapter, this.topic, this.params)
   }
 
   /** Subscribe registers your client with the server */
