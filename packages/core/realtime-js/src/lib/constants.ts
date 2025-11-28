@@ -1,5 +1,6 @@
 import { version } from './version'
-import * as Phoenix from 'phoenix'
+// FIXME: Use `phoenix` path when consts will be exported in the package
+import * as Phoenix from 'phoenix/priv/static/constants'
 
 export const DEFAULT_VERSION = `realtime-js/${version}`
 
