@@ -1,5 +1,0 @@
-# TODO: Change it to `https://github.com/supabase/phoenix` when it will be ready to be used
-[submodule "vendor/phoenix"]
-	path = vendor/phoenix
-	url = https://github.com/snickerdoodle2/supabase-phoenix.git
-	branch = snickerdoodle2/fix-jsdoc
