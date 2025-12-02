@@ -40,7 +40,6 @@ export class SocketAdapter {
   }
 
   connect(): void {
-    //@ts-ignore - params should be Object | undefined
     this.socket.connect()
   }
 
