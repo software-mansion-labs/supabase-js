@@ -258,6 +258,7 @@ export default class RealtimeChannel {
       this._trigger(this._replyEventName(ref), payload)
     })
 
+    this.channelAdapter = new ChannelAdapter(this.socket.socketAdapter, this.subTopic, this.params)
     this.presence = new RealtimePresence(this)
 
     this.broadcastEndpointURL = httpEndpointURL(this.socket.endPoint)
@@ -266,8 +267,6 @@ export default class RealtimeChannel {
     if (!this.private && this.params.config?.broadcast?.replay) {
       throw `tried to use replay on public channel '${this.topic}'. It must be a private channel.`
     }
-
-    this.channelAdapter = new ChannelAdapter(this.socket.socketAdapter, this.topic, this.params)
   }
 
   /** Subscribe registers your client with the server */

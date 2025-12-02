@@ -11,6 +11,7 @@ import {
   VSN_1_0_0,
   VSN_2_0_0,
   WS_CLOSE_NORMAL,
+  ConnectionState,
 } from './lib/constants'
 
 import Serializer from './lib/serializer'
@@ -337,7 +338,7 @@ export default class RealtimeClient {
   /**
    * Returns the current state of the socket.
    */
-  connectionState(): CONNECTION_STATE {
+  connectionState(): ConnectionState {
     switch (this.conn && this.conn.readyState) {
       case SOCKET_STATES.connecting:
         return CONNECTION_STATE.Connecting
