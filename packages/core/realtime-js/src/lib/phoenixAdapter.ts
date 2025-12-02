@@ -1,9 +1,19 @@
 import { Channel, Socket, Presence } from 'phoenix'
-import type { BindingCallback } from 'phoenix/priv/static/channel'
-import type { OnJoin, OnLeave, Events, OnSync, State } from 'phoenix/priv/static/presence'
-import Push from 'phoenix/priv/static/push'
-
-import { CONNECTION_STATE, CHANNEL_STATES, ChannelState } from './constants'
+import type {
+  BindingCallback,
+  Events,
+  Message,
+  OnCloseCallback,
+  OnErrorCallback,
+  OnJoin,
+  OnLeave,
+  OnMessageCallback,
+  OnOpenCallback,
+  OnSync,
+  State,
+  SocketOptions,
+} from 'phoenix'
+import { CHANNEL_STATES, ChannelState, ConnectionState } from './constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import type { RealtimeClientOptions } from '../RealtimeClient'
 import type {
@@ -12,12 +22,14 @@ import type {
   Presence as RealtimePresenceType,
 } from '../RealtimePresence'
 
+// TODO: Find better way to type Push
+type Push = ReturnType<Channel['push']>
+
 export class SocketAdapter {
   private socket: Socket
 
   constructor(endPoint: string, options: RealtimeClientOptions) {
-    const phoenixOptions = phoenixSocketOptions(options)
-    this.socket = new Socket(endPoint, phoenixOptions)
+    this.socket = new Socket(endPoint, options as SocketOptions)
   }
 
   get timeout(): number {
@@ -32,16 +44,15 @@ export class SocketAdapter {
     this.socket.connect()
   }
 
-  disconnect(code: number | undefined, reason: string | undefined): void {
-    //@ts-ignore - code and reason should be undefinable
+  disconnect(code?: number, reason?: string) {
     this.socket.disconnect(() => {}, code, reason)
   }
 
-  push(data: Object): void {
+  push(data: Message<Record<string, unknown>>) {
     this.socket.push(data)
   }
 
-  log(kind: string, msg: string, data?: any): void {
+  log(kind: string, msg: string, data?: any) {
     this.socket.log(kind, msg, data)
   }
 
@@ -49,19 +60,19 @@ export class SocketAdapter {
     return this.socket.makeRef()
   }
 
-  onOpen(callback: Function): void {
+  onOpen(callback: OnOpenCallback) {
     this.socket.onOpen(callback)
   }
 
-  onClose(callback: Function): void {
+  onClose(callback: OnCloseCallback) {
     this.socket.onClose(callback)
   }
 
-  onError(callback: Function): void {
+  onError(callback: OnErrorCallback) {
     this.socket.onError(callback)
   }
 
-  onMessage(callback: Function): void {
+  onMessage(callback: OnMessageCallback) {
     this.socket.onMessage(callback)
   }
 
@@ -69,8 +80,8 @@ export class SocketAdapter {
     return this.socket.isConnected()
   }
 
-  connectionState(): CONNECTION_STATE {
-    return this.socket.connectionState() as CONNECTION_STATE
+  connectionState(): ConnectionState {
+    return this.socket.connectionState() as ConnectionState
   }
 
   endPointURL(): string {
@@ -82,20 +93,6 @@ export class SocketAdapter {
    */
   getSocket(): Socket {
     return this.socket
-  }
-}
-
-function phoenixSocketOptions(options: RealtimeClientOptions): Object {
-  return {
-    transport: options.transport,
-    encode: options.encode,
-    decode: options.decode,
-    timeout: options.timeout,
-    heartbeatIntervalMs: options.heartbeatIntervalMs,
-    reconnectAfterMs: options.reconnectAfterMs,
-    logger: options.logger,
-    params: options.params,
-    vsn: options.vsn,
   }
 }
 
@@ -122,28 +119,28 @@ export class ChannelAdapter {
   }
 
   off(event: string, refNumber?: number): void {
-    //@ts-ignore - params should be Object | undefined
+    //@ts-ignore - refNumber should be `number | undefined`
     this.channel.off(event, refNumber)
   }
 
   trigger(type: string, payload: object, ref?: string): void {
-    //@ts-ignore - trigger and joinRef will be public
-    this.channel.trigger(type, payload, ref, this.channel.joinRef())
+    //@ts-ignore - trigger should be public
+    this.channel.trigger(type, payload, ref, this.joinRef())
   }
 
-  subscribe(timeout?: number | undefined): Push {
+  subscribe(timeout?: number): Push {
     return this.channel.join(timeout)
   }
 
-  unsubscribe(timeout?: number | undefined): Push {
+  unsubscribe(timeout?: number): Push {
     return this.channel.leave(timeout)
   }
 
-  send(event: string, payload: object, timeout?: number | undefined): void {
+  send(event: string, payload: object, timeout?: number): void {
     this.channel.push(event, payload, timeout)
   }
 
-  push(event: string, payload: { [key: string]: any }, timeout?: number | undefined): Push {
+  push(event: string, payload: { [key: string]: any }, timeout?: number): Push {
     try {
       return this.channel.push(event, payload, timeout)
     } catch (error) {
@@ -155,8 +152,8 @@ export class ChannelAdapter {
   }
 
   joinRef(): string {
-    //@ts-ignore - joinRef will be public
-    return this.channel.joinRef()
+    //@ts-ignore - `joinRef()` will be public
+    return this.channel.joinPush.ref
   }
 
   /**
@@ -167,7 +164,7 @@ export class ChannelAdapter {
   }
 }
 
-function phoenixChannelParams(options: RealtimeChannelOptions): Object {
+function phoenixChannelParams(options: RealtimeChannelOptions): Record<string, unknown> {
   return {
     config: {
       ...{
