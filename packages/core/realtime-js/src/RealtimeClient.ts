@@ -190,7 +190,7 @@ export default class RealtimeClient {
     this._initializeOptions(options)
     this._setupReconnectionTimer()
     this.fetch = this._resolveFetch(options?.fetch)
-    this.socketAdapter = new SocketAdapter(this.endPoint, options)
+    this.socketAdapter = new SocketAdapter(endPoint, options)
   }
 
   /**
