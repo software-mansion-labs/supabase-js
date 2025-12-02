@@ -1,6 +1,10 @@
 import { version } from './version'
-// FIXME: Use `phoenix` path when consts will be exported in the package
-import * as Phoenix from 'phoenix/priv/static/constants'
+import type {
+  SocketState,
+  ChannelState,
+  ChannelEvent as PhoenixChannelEvent,
+  Transport,
+} from 'phoenix'
 
 export const DEFAULT_VERSION = `realtime-js/${version}`
 
@@ -15,26 +19,43 @@ export const DEFAULT_TIMEOUT = 10000
 export const WS_CLOSE_NORMAL = 1000
 export const MAX_PUSH_BUFFER_SIZE = 100
 
-export const SOCKET_STATES = Phoenix.SOCKET_STATES
-export type SocketState = Phoenix.SocketState
+export const SOCKET_STATES: Record<string, SocketState> = {
+  connecting: 0,
+  open: 1,
+  closing: 2,
+  closed: 3,
+}
 
-export const CHANNEL_STATES = Phoenix.CHANNEL_STATES
-export type ChannelState = Phoenix.ChannelState
-
-export const CHANNEL_EVENTS = {
-  ...Phoenix.CHANNEL_EVENTS,
-  access_token: 'access_token',
+export const CHANNEL_STATES: Record<string, ChannelState> = {
+  closed: 'closed',
+  errored: 'errored',
+  joined: 'joined',
+  joining: 'joining',
+  leaving: 'leaving',
 } as const
-export type ChannelEvent = Phoenix.ChannelEvent | 'access_token'
 
-// TODO: Look at this after checking Longpoll transport
-export enum TRANSPORTS {
-  websocket = 'websocket',
+type ChannelEvent = PhoenixChannelEvent | 'access_token'
+
+export const CHANNEL_EVENTS: Record<string, ChannelEvent> = {
+  close: 'phx_close',
+  error: 'phx_error',
+  join: 'phx_join',
+  reply: 'phx_reply',
+  leave: 'phx_leave',
+  access_token: 'access_token',
 }
 
-export enum CONNECTION_STATE {
-  Connecting = 'connecting',
-  Open = 'open',
-  Closing = 'closing',
-  Closed = 'closed',
+export const TRANSPORTS: Record<string, Transport> = {
+  websocket: 'websocket',
 }
+
+type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed'
+
+export const CONNECTION_STATE: Record<string, ConnectionState> = {
+  connecting: 'connecting',
+  open: 'open',
+  closing: 'closing',
+  closed: 'closed',
+}
+
+export type { SocketState, ChannelState, ChannelEvent, ConnectionState }
