@@ -118,7 +118,6 @@ export class ChannelAdapter {
   }
 
   off(event: string, refNumber?: number): void {
-    //@ts-ignore - refNumber should be `number | undefined`
     this.channel.off(event, refNumber)
   }
 
@@ -257,7 +256,7 @@ function cloneDeep(obj: { [key: string]: any }) {
   return JSON.parse(JSON.stringify(obj))
 }
 
-function phoenixPresenceOptions(opts?: RealtimePresenceOptions): { events: Events } | undefined {
+function phoenixPresenceOptions(opts?: RealtimePresenceOptions) {
   if (!opts?.events) return undefined
   return { events: opts.events }
 }
