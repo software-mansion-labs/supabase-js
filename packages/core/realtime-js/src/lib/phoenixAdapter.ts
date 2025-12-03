@@ -1,7 +1,6 @@
 import { Channel, Socket, Presence } from 'phoenix'
 import type {
   BindingCallback,
-  Events,
   Message,
   OnCloseCallback,
   OnErrorCallback,
@@ -230,7 +229,7 @@ export class PresenceAdapter {
  *
  */
 function transformState(state: State): RealtimePresenceState {
-  state = cloneDeep(state)
+  state = cloneDeep<State>(state)
 
   return Object.getOwnPropertyNames(state).reduce((newState, key) => {
     const presences = state[key]
@@ -252,8 +251,8 @@ function transformState(state: State): RealtimePresenceState {
   }, {} as RealtimePresenceState)
 }
 
-function cloneDeep(obj: { [key: string]: any }) {
-  return JSON.parse(JSON.stringify(obj))
+function cloneDeep<T extends { [key: string]: any }>(obj: T) {
+  return JSON.parse(JSON.stringify(obj)) as T
 }
 
 function phoenixPresenceOptions(opts?: RealtimePresenceOptions) {
