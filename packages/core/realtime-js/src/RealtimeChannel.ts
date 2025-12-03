@@ -1,4 +1,5 @@
-import { CHANNEL_EVENTS, CHANNEL_STATES, ChannelState, MAX_PUSH_BUFFER_SIZE } from './lib/constants'
+import { CHANNEL_EVENTS, CHANNEL_STATES, MAX_PUSH_BUFFER_SIZE } from './lib/constants'
+import type { ChannelState } from './lib/constants'
 import Push from './lib/push'
 import type RealtimeClient from './RealtimeClient'
 import Timer from './lib/timer'
