@@ -19,7 +19,7 @@ import Timer from './lib/timer'
 import { httpEndpointURL } from './lib/transformers'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
-import { SocketAdapter } from './lib/phoenixAdapter'
+import SocketAdapter from './phoenix/socketAdapter'
 
 type Fetch = typeof fetch
 

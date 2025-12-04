@@ -4,7 +4,7 @@
 */
 
 import type RealtimeChannel from './RealtimeChannel'
-import { PresenceAdapter } from './lib/phoenixAdapter'
+import PresenceAdapter from './phoenix/presenceAdapter'
 
 export type Presence<T extends { [key: string]: any } = {}> = {
   presence_ref: string

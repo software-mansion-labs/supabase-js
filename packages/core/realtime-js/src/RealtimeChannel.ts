@@ -11,7 +11,7 @@ import type {
 } from './RealtimePresence'
 import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
-import { ChannelAdapter } from './lib/phoenixAdapter'
+import ChannelAdapter from './phoenix/channelAdapter'
 
 type ReplayOption = {
   since: number
