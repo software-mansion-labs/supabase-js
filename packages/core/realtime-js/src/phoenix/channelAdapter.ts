@@ -66,7 +66,7 @@ export default class ChannelAdapter {
   }
 
   /**
-   * @private
+   * @internal
    */
   getChannel(): Channel {
     return this.channel

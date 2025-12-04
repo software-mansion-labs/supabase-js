@@ -73,7 +73,7 @@ export default class SocketAdapter {
   }
 
   /**
-   * @private
+   * @internal
    */
   getSocket(): Socket {
     return this.socket
