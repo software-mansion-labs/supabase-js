@@ -197,13 +197,6 @@ export class PresenceAdapter {
   onSync(callback: OnSync): void {
     this.presence.onSync(callback)
   }
-
-  /**
-   * @private
-   */
-  getPresence(): Presence {
-    return this.presence
-  }
 }
 
 /**
