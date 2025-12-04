@@ -55,7 +55,7 @@ export default class PresenceAdapter {
  *
  */
 function transformState(state: State): RealtimePresenceState {
-  state = structuredClone(state)
+  state = cloneState(state)
 
   return Object.getOwnPropertyNames(state).reduce((newState, key) => {
     const presences = state[key]
@@ -71,6 +71,10 @@ function transformState(state: State): RealtimePresenceState {
 
     return newState
   }, {} as RealtimePresenceState)
+}
+
+function cloneState(state: State): State {
+  return JSON.parse(JSON.stringify(state))
 }
 
 function phoenixPresenceOptions(opts?: RealtimePresenceOptions) {
