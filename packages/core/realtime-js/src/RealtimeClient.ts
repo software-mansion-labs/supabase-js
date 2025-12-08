@@ -18,15 +18,10 @@ import { httpEndpointURL } from './lib/transformers'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
 import SocketAdapter from './phoenix/socketAdapter'
+import { Message } from './phoenix/types'
 
 type Fetch = typeof fetch
 
-export type Channel = {
-  name: string
-  inserted_at: string
-  updated_at: string
-  id: number
-}
 export type LogLevel = 'info' | 'warn' | 'error'
 
 export type RealtimeMessage = {
@@ -206,11 +201,12 @@ export default class RealtimeClient {
     }
     this.apiKey = options.params.apikey
 
-    this.fetch = this._resolveFetch(options?.fetch)
     const socketAdapterOptions = this._initializeOptions(options)
 
     this.socketAdapter = new SocketAdapter(endPoint, socketAdapterOptions)
     this.httpEndpoint = httpEndpointURL(endPoint)
+
+    this.fetch = this._resolveFetch(options?.fetch)
     this._setupReconnectionTimer()
   }
 
@@ -291,7 +287,7 @@ export default class RealtimeClient {
   /**
    * Logs the message.
    *
-   * For customized logging, `this.logger` can be overridden.
+   * For customized logging, `this.logger` can be overridden in Client constructor.
    */
   log(kind: string, msg: string, data?: any) {
     this.logger(kind, msg, data)
@@ -490,13 +486,10 @@ export default class RealtimeClient {
 
         tokenToSend && channel.updateJoinPayload(payload)
 
-        // TODO: Try catch trick. Expose joinedOnce and check instead of try.
-        try {
+        if (channel.joinedOnce && channel._isJoined()) {
           channel._push(CHANNEL_EVENTS.access_token, {
             access_token: tokenToSend,
           })
-        } catch (e) {
-          this.log('error', 'error pushing access token', e)
         }
       })
     }
@@ -560,7 +553,7 @@ export default class RealtimeClient {
         this._stopWorkerHeartbeat()
       }
     })
-    this.socketAdapter.onMessage((message: RealtimeMessage) => {
+    this.socketAdapter.onMessage((message: Message<any>) => {
       if (message.ref && message.ref === this._pendingWorkerHeartbeatRef) {
         this._pendingWorkerHeartbeatRef = null
       }

@@ -103,8 +103,7 @@ export default class SocketAdapter {
     this.socket.onError(callback)
   }
 
-  onMessage(callback: (message: RealtimeMessage) => void) {
-    //@ts-ignore - TODO: onMessage callback should take Message<T> instead of MessageEvent<T>
+  onMessage(callback: OnMessageCallback) {
     this.socket.onMessage(callback)
   }
 

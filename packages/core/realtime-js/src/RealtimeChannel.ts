@@ -260,7 +260,7 @@ export default class RealtimeChannel {
     if (!this.socket.isConnected()) {
       this.socket.connect()
     }
-    if (this.state == CHANNEL_STATES.closed) {
+    if (this._isClosed()) {
       const {
         config: { broadcast, presence, private: isPrivate },
       } = this.params
@@ -516,7 +516,7 @@ export default class RealtimeChannel {
     filter: { event: string; [key: string]: string },
     callback: (payload: any) => void
   ): RealtimeChannel {
-    if (this.state === CHANNEL_STATES.joined && type === REALTIME_LISTEN_TYPES.PRESENCE) {
+    if (this._isJoined() && type === REALTIME_LISTEN_TYPES.PRESENCE) {
       this.socket.log(
         'channel',
         `resubscribe to ${this.topic} due to change in presence callbacks on joined channel`
@@ -722,6 +722,26 @@ export default class RealtimeChannel {
   /** @internal */
   _canPush(): boolean {
     return this.channelAdapter.canSend()
+  }
+
+  /** @internal */
+  _isJoined() {
+    return this.channelAdapter.state === CHANNEL_STATES.joined
+  }
+
+  /** @internal */
+  _isJoining() {
+    return this.channelAdapter.state === CHANNEL_STATES.joining
+  }
+
+  /** @internal */
+  _isClosed() {
+    return this.channelAdapter.state === CHANNEL_STATES.closed
+  }
+
+  /** @internal */
+  _isLeaving() {
+    return this.channelAdapter.state === CHANNEL_STATES.leaving
   }
 
   /** @internal */
