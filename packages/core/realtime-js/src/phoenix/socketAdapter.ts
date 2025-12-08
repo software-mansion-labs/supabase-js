@@ -6,9 +6,14 @@ import type {
   OnMessageCallback,
   OnOpenCallback,
   SocketOptions,
-} from 'phoenix'
-import { ConnectionState } from '../lib/constants'
-import type { RealtimeClientOptions } from '../RealtimeClient'
+} from './types'
+import { CONNECTION_STATE, ConnectionState } from '../lib/constants'
+import type {
+  HeartbeatTimer,
+  RealtimeClientOptions,
+  RealtimeMessage,
+  WebSocketLikeConstructor,
+} from '../RealtimeClient'
 
 export default class SocketAdapter {
   private socket: Socket
@@ -17,11 +22,53 @@ export default class SocketAdapter {
     this.socket = new Socket(endPoint, options as SocketOptions)
   }
 
-  get timeout(): number {
+  get timeout() {
     return this.socket.timeout
   }
-  set timeout(timeout: number) {
-    this.socket.timeout = timeout
+
+  get transport() {
+    return this.socket.transport as WebSocketLikeConstructor
+  }
+
+  get heartbeatIntervalMs() {
+    return this.socket.heartbeatIntervalMs
+  }
+
+  get heartbeatTimer() {
+    return this.socket.heartbeatTimer as HeartbeatTimer
+  }
+
+  get pendingHeartbeatRef() {
+    return this.socket.pendingHeartbeatRef
+  }
+
+  get vsn() {
+    return this.socket.vsn
+  }
+
+  get logger() {
+    return this.socket.logger
+  }
+
+  get encode() {
+    return this.socket.encode
+  }
+
+  get decode() {
+    return this.socket.decode
+  }
+
+  get reconnectAfterMs() {
+    console.log(this.socket)
+    return this.socket.reconnectAfterMs
+  }
+
+  get sendBuffer() {
+    return this.socket.sendBuffer
+  }
+
+  get stateChangeCallbacks() {
+    return this.socket.stateChangeCallbacks
   }
 
   connect(): void {
@@ -56,12 +103,21 @@ export default class SocketAdapter {
     this.socket.onError(callback)
   }
 
-  onMessage(callback: OnMessageCallback) {
+  onMessage(callback: (message: RealtimeMessage) => void) {
+    //@ts-ignore - TODO: onMessage callback should take Message<T> instead of MessageEvent<T>
     this.socket.onMessage(callback)
   }
 
   isConnected(): boolean {
     return this.socket.isConnected()
+  }
+
+  isConnecting(): boolean {
+    return this.socket.connectionState() == CONNECTION_STATE.connecting
+  }
+
+  isDisconnecting(): boolean {
+    return this.socket.connectionState() == CONNECTION_STATE.closing
   }
 
   connectionState(): ConnectionState {

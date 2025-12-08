@@ -1,10 +1,8 @@
 import { Channel } from 'phoenix'
-import type { BindingCallback } from 'phoenix'
 import { CHANNEL_STATES, ChannelState } from '../lib/constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import SocketAdapter from './socketAdapter'
-
-type Push = ReturnType<Channel['push']>
+import type { Push, BindingCallback } from './types'
 
 export default class ChannelAdapter {
   private channel: Channel
@@ -22,6 +20,22 @@ export default class ChannelAdapter {
 
   set state(state: ChannelState) {
     this.channel.state = state
+  }
+
+  get joinedOnce(): boolean {
+    return this.channel.joinedOnce
+  }
+
+  set joinedOnce(joinedOnce: boolean) {
+    this.channel.joinedOnce = joinedOnce
+  }
+
+  get joinPush() {
+    return this.channel.joinPush
+  }
+
+  get rejoinTimer() {
+    return this.channel.rejoinTimer
   }
 
   on(event: string, callback: BindingCallback): number {
@@ -56,6 +70,7 @@ export default class ChannelAdapter {
       throw `tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`
     }
   }
+
   canSend(): boolean {
     return this.socket.isConnected() && this.state === CHANNEL_STATES.joined
   }
@@ -63,6 +78,22 @@ export default class ChannelAdapter {
   joinRef(): string {
     //@ts-ignore - `joinRef()` will be public
     return this.channel.joinPush.ref
+  }
+
+  // FIXME: This needs changes in `phoenix` library.
+  updateFilterMessage(
+    filterMessage: (
+      event: string,
+      payload: object,
+      ref: number | undefined,
+      bind: { event: string; ref: number }
+    ) => boolean
+  ): void {}
+
+  updatePayloadTransform(
+    callback: (event: string, payload: unknown, ref: number) => unknown
+  ): void {
+    this.channel.onMessage = callback
   }
 
   /**
