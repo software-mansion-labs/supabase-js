@@ -287,6 +287,8 @@ export default class RealtimeChannel {
 
       this._onClose(() => callback?.(REALTIME_SUBSCRIBE_STATES.CLOSED))
 
+      this._updateFilterTransform()
+
       this.updateJoinPayload({ ...{ config }, ...accessTokenPayload })
 
       this.channelAdapter
@@ -669,7 +671,7 @@ export default class RealtimeChannel {
    * Useful for rotating access tokens or updating config without re-creating the channel.
    */
   updateJoinPayload(payload: { [key: string]: any }): void {
-    // TODO: This might need refactor if
+    // TODO: This might need refactor
     this.channelAdapter.getChannel().joinPush.payload = () => payload
   }
 
@@ -713,12 +715,7 @@ export default class RealtimeChannel {
   }
 
   /** @internal */
-  _joinRef(): string {
-    return this.channelAdapter.joinRef()
-  }
-
-  /** @internal */
-  _trigger(type: string, payload?: any, ref?: string) {
+  _trigger(type: string, payload?: any, ref?: number) {
     this.channelAdapter.trigger(type, payload, ref)
   }
 
@@ -746,7 +743,7 @@ export default class RealtimeChannel {
       this.bindings[typeLower] = [binding]
     }
 
-    this._updateFilterMessage() // TODO: Not working when using `on` after `subscribe`.
+    this._updateFilterMessage()
 
     return this
   }
@@ -800,6 +797,7 @@ export default class RealtimeChannel {
    *
    * @internal
    */
+  // FIXME: typing of callback
   private _onError(callback: Function) {
     this._on(CHANNEL_EVENTS.error, {}, (reason: any) => callback(reason))
   }

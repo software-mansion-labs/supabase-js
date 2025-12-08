@@ -14,19 +14,19 @@ export default class ChannelAdapter {
     this.socket = socket
   }
 
-  get state(): ChannelState {
+  get state() {
     return this.channel.state as ChannelState
   }
 
-  set state(state: ChannelState) {
+  set state(state) {
     this.channel.state = state
   }
 
-  get joinedOnce(): boolean {
+  get joinedOnce() {
     return this.channel.joinedOnce
   }
 
-  set joinedOnce(joinedOnce: boolean) {
+  set joinedOnce(joinedOnce) {
     this.channel.joinedOnce = joinedOnce
   }
 
@@ -38,32 +38,31 @@ export default class ChannelAdapter {
     return this.channel.rejoinTimer
   }
 
-  on(event: string, callback: BindingCallback): number {
+  on(event: string, callback: BindingCallback) {
     return this.channel.on(event, callback)
   }
 
-  off(event: string, refNumber?: number): void {
+  off(event: string, refNumber?: number) {
     this.channel.off(event, refNumber)
   }
 
-  trigger(type: string, payload: object, ref?: string): void {
-    //@ts-ignore - trigger should be public
+  trigger(type: string, payload: object, ref?: number) {
     this.channel.trigger(type, payload, ref, this.joinRef())
   }
 
-  subscribe(timeout?: number): Push {
+  subscribe(timeout?: number) {
     return this.channel.join(timeout)
   }
 
-  unsubscribe(timeout?: number): Push {
+  unsubscribe(timeout?: number) {
     return this.channel.leave(timeout)
   }
 
-  send(event: string, payload: object, timeout?: number): void {
+  send(event: string, payload: object, timeout?: number) {
     this.channel.push(event, payload, timeout)
   }
 
-  push(event: string, payload: { [key: string]: any }, timeout?: number): Push {
+  push(event: string, payload: { [key: string]: any }, timeout?: number) {
     try {
       return this.channel.push(event, payload, timeout)
     } catch (error) {
@@ -71,16 +70,18 @@ export default class ChannelAdapter {
     }
   }
 
-  canSend(): boolean {
+  canSend() {
     return this.socket.isConnected() && this.state === CHANNEL_STATES.joined
   }
 
-  joinRef(): string {
-    //@ts-ignore - `joinRef()` will be public
+  joinRef(): number {
+    if (!this.channel.joinPush.ref) {
+      throw new Error('Join push reference not found')
+    }
+
     return this.channel.joinPush.ref
   }
 
-  // FIXME: This needs changes in `phoenix` library.
   updateFilterMessage(
     filterMessage: (
       event: string,
@@ -88,11 +89,11 @@ export default class ChannelAdapter {
       ref: number | undefined,
       bind: { event: string; ref: number }
     ) => boolean
-  ): void {}
+  ) {
+    this.channel.filterMessage = filterMessage
+  }
 
-  updatePayloadTransform(
-    callback: (event: string, payload: unknown, ref: number) => unknown
-  ): void {
+  updatePayloadTransform(callback: (event: string, payload: unknown, ref: number) => unknown) {
     this.channel.onMessage = callback
   }
 
