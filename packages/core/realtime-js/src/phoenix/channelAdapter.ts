@@ -47,6 +47,8 @@ export default class ChannelAdapter {
   }
 
   trigger(type: string, payload: object, ref?: number) {
+    // TODO: check trigger function typing in phoenix
+    // @ts-ignore
     this.channel.trigger(type, payload, ref, this.joinRef())
   }
 

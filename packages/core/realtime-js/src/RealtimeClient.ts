@@ -12,8 +12,7 @@ import {
 } from './lib/constants'
 
 import Serializer from './lib/serializer'
-import Timer from './lib/timer'
-
+import Timer from './phoenix/timer'
 import { httpEndpointURL } from './lib/transformers'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
@@ -100,23 +99,40 @@ export default class RealtimeClient {
   accessToken: (() => Promise<string | null>) | null = null
   apiKey: string | null = null
 
-  get endPoint(): string {
-    return this.socketAdapter.endPoint
-  }
-
   httpEndpoint: string = ''
   /** @deprecated headers cannot be set on websocket connections */
   headers?: { [key: string]: string } = {}
   params?: { [key: string]: string } = {}
+
+  heartbeatCallback: (status: HeartbeatStatus) => void = noop
+  ref: number = 0
+  reconnectTimer: Timer | null = null
+
+  logLevel?: LogLevel
+
+  fetch: Fetch
+  worker?: boolean
+  workerUrl?: string
+  workerRef?: Worker
+
+  serializer: Serializer = new Serializer()
+
+  get endPoint(): string {
+    return this.socketAdapter.endPoint
+  }
+
   get timeout(): number {
     return this.socketAdapter.timeout
   }
+
   get transport(): WebSocketLikeConstructor {
     return this.socketAdapter.transport
   }
+
   get heartbeatIntervalMs(): number {
     return this.socketAdapter.heartbeatIntervalMs
   }
+
   get heartbeatTimer(): HeartbeatTimer {
     if (this.worker) {
       return this._workerHeartbeatTimer
@@ -131,28 +147,26 @@ export default class RealtimeClient {
     return this.socketAdapter.pendingHeartbeatRef
   }
 
-  heartbeatCallback: (status: HeartbeatStatus) => void = noop
-  ref: number = 0
-  reconnectTimer: Timer | null = null
-
   get vsn(): string {
     return this.socketAdapter.vsn
   }
 
-  logLevel?: LogLevel
   get encode(): Function {
     return this.socketAdapter.encode
   }
+
   get decode(): Function {
     return this.socketAdapter.decode
   }
-  get reconnectAfterMs(): Function {
+
+  get reconnectAfterMs(): (tries: number) => number {
     return this.socketAdapter.reconnectAfterMs
   }
+
   get sendBuffer(): Function[] {
     return this.socketAdapter.sendBuffer
   }
-  serializer: Serializer = new Serializer()
+
   get stateChangeCallbacks(): {
     open: [string, Function][]
     close: [string, Function][]
@@ -161,10 +175,7 @@ export default class RealtimeClient {
   } {
     return this.socketAdapter.stateChangeCallbacks
   }
-  fetch: Fetch
-  worker?: boolean
-  workerUrl?: string
-  workerRef?: Worker
+
   private _authPromise: Promise<void> | null = null
   private _workerHeartbeatTimer: HeartbeatTimer = undefined
   private _pendingWorkerHeartbeatRef: string | null = null
@@ -458,7 +469,6 @@ export default class RealtimeClient {
    * @internal
    */
   _remove(channel: RealtimeChannel) {
-    // TODO: This is meant to be used with phoenix `remove` method.
     this.channels = this.channels.filter((c) => c.topic !== channel.topic)
   }
 

@@ -11,7 +11,6 @@ import { CONNECTION_STATE, ConnectionState } from '../lib/constants'
 import type {
   HeartbeatTimer,
   RealtimeClientOptions,
-  RealtimeMessage,
   WebSocketLikeConstructor,
 } from '../RealtimeClient'
 

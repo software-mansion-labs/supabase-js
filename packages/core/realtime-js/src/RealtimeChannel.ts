@@ -1,7 +1,6 @@
-import { CHANNEL_EVENTS, CHANNEL_STATES, MAX_PUSH_BUFFER_SIZE } from './lib/constants'
+import { CHANNEL_STATES } from './lib/constants'
 import type { ChannelState } from './lib/constants'
 import type RealtimeClient from './RealtimeClient'
-import Timer from './lib/timer'
 import RealtimePresence, { REALTIME_PRESENCE_LISTEN_EVENTS } from './RealtimePresence'
 import type {
   RealtimePresenceJoinPayload,
@@ -12,6 +11,7 @@ import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
 import { BindingCallback, ChanelOnErrorCallback } from './phoenix/types'
+import Timer from './phoenix/timer'
 
 type ReplayOption = {
   since: number
@@ -180,7 +180,7 @@ export default class RealtimeChannel {
   presence: RealtimePresence
   channelAdapter: ChannelAdapter
 
-  get state(): ChannelState {
+  get state() {
     return this.channelAdapter.state
   }
 
@@ -188,7 +188,7 @@ export default class RealtimeChannel {
     this.channelAdapter.state = state
   }
 
-  get joinedOnce(): boolean {
+  get joinedOnce() {
     return this.channelAdapter.joinedOnce
   }
 
@@ -196,7 +196,7 @@ export default class RealtimeChannel {
     this.channelAdapter.joinedOnce = joinedOnce
   }
 
-  get timeout(): number {
+  get timeout() {
     return this.socket.timeout
   }
 
@@ -204,8 +204,7 @@ export default class RealtimeChannel {
     return this.channelAdapter.joinPush
   }
 
-  // FIXME: Make conversion for Timer from phoenix to realtime-js
-  get rejoinTimer() {
+  get rejoinTimer(): Timer {
     return this.channelAdapter.rejoinTimer
   }
 
