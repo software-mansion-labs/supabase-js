@@ -492,8 +492,8 @@ export default class RealtimeClient {
 
         tokenToSend && channel.updateJoinPayload(payload)
 
-        if (channel.joinedOnce && channel._isJoined()) {
-          channel._push(CHANNEL_EVENTS.access_token, {
+        if (channel.joinedOnce && channel.channelAdapter.isJoined()) {
+          channel.channelAdapter.push(CHANNEL_EVENTS.access_token, {
             access_token: tokenToSend,
           })
         }

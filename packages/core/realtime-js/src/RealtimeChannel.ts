@@ -263,7 +263,7 @@ export default class RealtimeChannel {
     if (!this.socket.isConnected()) {
       this.socket.connect()
     }
-    if (this._isClosed()) {
+    if (this.channelAdapter.isClosed()) {
       const {
         config: { broadcast, presence, private: isPrivate },
       } = this.params
@@ -521,7 +521,7 @@ export default class RealtimeChannel {
     filter: { event: string; [key: string]: string },
     callback: (payload: any) => void
   ): RealtimeChannel {
-    if (this._isJoined() && type === REALTIME_LISTEN_TYPES.PRESENCE) {
+    if (this.channelAdapter.isJoined() && type === REALTIME_LISTEN_TYPES.PRESENCE) {
       this.socket.log(
         'channel',
         `resubscribe to ${this.topic} due to change in presence callbacks on joined channel`
@@ -610,7 +610,7 @@ export default class RealtimeChannel {
     },
     opts: { [key: string]: any } = {}
   ): Promise<RealtimeChannelSendResponse> {
-    if (!this._canPush() && args.type === 'broadcast') {
+    if (!this.channelAdapter.canPush() && args.type === 'broadcast') {
       console.warn(
         'Realtime send() is automatically falling back to REST API. ' +
           'This behavior will be deprecated in the future. ' +
@@ -658,7 +658,7 @@ export default class RealtimeChannel {
       }
     } else {
       return new Promise((resolve) => {
-        const push = this._push(args.type, args, opts.timeout || this.timeout)
+        const push = this.channelAdapter.push(args.type, args, opts.timeout || this.timeout)
 
         if (args.type === 'broadcast' && !this.params?.config?.broadcast?.ack) {
           resolve('ok')
@@ -711,41 +711,6 @@ export default class RealtimeChannel {
     clearTimeout(id)
 
     return response
-  }
-
-  /** @internal */
-  _push(event: string, payload: { [key: string]: any }, timeout = this.timeout) {
-    return this.channelAdapter.push(event, payload, timeout)
-  }
-
-  /** @internal */
-  _trigger(type: string, payload?: any, ref?: number) {
-    this.channelAdapter.trigger(type, payload, ref)
-  }
-
-  /** @internal */
-  _canPush(): boolean {
-    return this.channelAdapter.canSend()
-  }
-
-  /** @internal */
-  _isJoined() {
-    return this.channelAdapter.state === CHANNEL_STATES.joined
-  }
-
-  /** @internal */
-  _isJoining() {
-    return this.channelAdapter.state === CHANNEL_STATES.joining
-  }
-
-  /** @internal */
-  _isClosed() {
-    return this.channelAdapter.state === CHANNEL_STATES.closed
-  }
-
-  /** @internal */
-  _isLeaving() {
-    return this.channelAdapter.state === CHANNEL_STATES.leaving
   }
 
   /** @internal */

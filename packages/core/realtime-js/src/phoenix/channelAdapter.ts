@@ -84,16 +84,32 @@ export default class ChannelAdapter {
     this.channel.joinPush.payload = () => payload
   }
 
-  canSend() {
-    return this.socket.isConnected() && this.state === CHANNEL_STATES.joined
-  }
-
   joinRef(): number {
     if (!this.channel.joinPush.ref) {
       throw new Error('Join push reference not found')
     }
 
     return this.channel.joinPush.ref
+  }
+
+  canPush() {
+    return this.socket.isConnected() && this.state === CHANNEL_STATES.joined
+  }
+
+  isJoined() {
+    return this.state === CHANNEL_STATES.joined
+  }
+
+  isJoining() {
+    return this.state === CHANNEL_STATES.joining
+  }
+
+  isClosed() {
+    return this.state === CHANNEL_STATES.closed
+  }
+
+  isLeaving() {
+    return this.state === CHANNEL_STATES.leaving
   }
 
   updateFilterMessage(
