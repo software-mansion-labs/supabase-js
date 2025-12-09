@@ -26,6 +26,10 @@ export default class SocketAdapter {
     return this.socket.timeout
   }
 
+  get endPoint() {
+    return this.socket.endPoint
+  }
+
   get transport() {
     return this.socket.transport as WebSocketLikeConstructor
   }
@@ -46,10 +50,6 @@ export default class SocketAdapter {
     return this.socket.vsn
   }
 
-  get logger() {
-    return this.socket.logger
-  }
-
   get encode() {
     return this.socket.encode
   }
@@ -59,7 +59,6 @@ export default class SocketAdapter {
   }
 
   get reconnectAfterMs() {
-    console.log(this.socket)
     return this.socket.reconnectAfterMs
   }
 

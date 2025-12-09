@@ -100,6 +100,10 @@ export default class RealtimeClient {
   accessToken: (() => Promise<string | null>) | null = null
   apiKey: string | null = null
 
+  get endPoint(): string {
+    return this.socketAdapter.endPoint
+  }
+
   httpEndpoint: string = ''
   /** @deprecated headers cannot be set on websocket connections */
   headers?: { [key: string]: string } = {}
@@ -134,9 +138,7 @@ export default class RealtimeClient {
   get vsn(): string {
     return this.socketAdapter.vsn
   }
-  get logger(): (kind: string, msg: string, data?: any) => void {
-    return this.socketAdapter.logger
-  }
+
   logLevel?: LogLevel
   get encode(): Function {
     return this.socketAdapter.encode
@@ -290,7 +292,7 @@ export default class RealtimeClient {
    * For customized logging, `this.logger` can be overridden in Client constructor.
    */
   log(kind: string, msg: string, data?: any) {
-    this.logger(kind, msg, data)
+    this.socketAdapter.log(kind, msg, data)
   }
 
   /**

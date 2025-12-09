@@ -2,7 +2,7 @@ import { Channel } from 'phoenix'
 import { CHANNEL_STATES, ChannelState } from '../lib/constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import SocketAdapter from './socketAdapter'
-import type { Push, BindingCallback } from './types'
+import type { BindingCallback, ChanelOnErrorCallback } from './types'
 
 export default class ChannelAdapter {
   private channel: Channel
@@ -62,12 +62,24 @@ export default class ChannelAdapter {
     this.channel.push(event, payload, timeout)
   }
 
+  onClose(callback: BindingCallback) {
+    this.channel.onClose(callback)
+  }
+
+  onError(callback: ChanelOnErrorCallback) {
+    return this.channel.onError(callback)
+  }
+
   push(event: string, payload: { [key: string]: any }, timeout?: number) {
     try {
       return this.channel.push(event, payload, timeout)
     } catch (error) {
       throw `tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`
     }
+  }
+
+  updateJoinPayload(payload: Record<string, any>) {
+    this.channel.joinPush.payload = () => payload
   }
 
   canSend() {

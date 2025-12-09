@@ -11,7 +11,7 @@ import type {
 import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
-import { BindingCallback } from './phoenix/types'
+import { BindingCallback, ChanelOnErrorCallback } from './phoenix/types'
 
 type ReplayOption = {
   since: number
@@ -244,6 +244,10 @@ export default class RealtimeChannel {
     this.channelAdapter = new ChannelAdapter(this.socket.socketAdapter, topic, this.params)
     this.presence = new RealtimePresence(this)
 
+    this._onClose(() => {
+      this.socket._remove(this)
+    })
+
     this.broadcastEndpointURL = httpEndpointURL(this.socket.socketAdapter.endPointURL())
     this.private = this.params.config.private || false
 
@@ -283,7 +287,9 @@ export default class RealtimeChannel {
         accessTokenPayload.access_token = this.socket.accessTokenValue
       }
 
-      this._onError((e: Error) => callback?.(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, e))
+      this._onError((reason: Error) => {
+        callback?.(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, reason)
+      })
 
       this._onClose(() => callback?.(REALTIME_SUBSCRIBE_STATES.CLOSED))
 
@@ -670,9 +676,8 @@ export default class RealtimeChannel {
    * Updates the payload that will be sent the next time the channel joins (reconnects).
    * Useful for rotating access tokens or updating config without re-creating the channel.
    */
-  updateJoinPayload(payload: { [key: string]: any }): void {
-    // TODO: This might need refactor
-    this.channelAdapter.getChannel().joinPush.payload = () => payload
+  updateJoinPayload(payload: Record<string, any>) {
+    this.channelAdapter.updateJoinPayload(payload)
   }
 
   /**
@@ -768,48 +773,13 @@ export default class RealtimeChannel {
     return this
   }
 
-  // TODO: Not used anywhere but might be used in the future.
-  /** @internal */
-  _off(type: string, filter: { [key: string]: any }) {
-    const typeLower = type.toLocaleLowerCase()
-
-    const bind = this.bindings[typeLower]?.find((bind) => {
-      return (
-        bind.type?.toLocaleLowerCase() === typeLower && RealtimeChannel.isEqual(bind.filter, filter)
-      )
-    })
-
-    if (bind) {
-      this.bindings[typeLower] = this.bindings[typeLower]?.filter((bind) => bind.ref !== bind.ref)
-      this._updateFilterMessage()
-      this.channelAdapter.off(type, bind.ref)
-    }
-
-    return this
-  }
-
-  /** @internal */
-  private static isEqual(obj1: { [key: string]: string }, obj2: { [key: string]: string }) {
-    if (Object.keys(obj1).length !== Object.keys(obj2).length) {
-      return false
-    }
-
-    for (const k in obj1) {
-      if (obj1[k] !== obj2[k]) {
-        return false
-      }
-    }
-
-    return true
-  }
-
   /**
    * Registers a callback that will be executed when the channel closes.
    *
    * @internal
    */
   private _onClose(callback: BindingCallback) {
-    this._on(CHANNEL_EVENTS.close, {}, callback)
+    this.channelAdapter.onClose(callback)
   }
 
   /**
@@ -817,9 +787,8 @@ export default class RealtimeChannel {
    *
    * @internal
    */
-  // FIXME: typing of callback
-  private _onError(callback: Function) {
-    this._on(CHANNEL_EVENTS.error, {}, (reason: any) => callback(reason))
+  private _onError(callback: ChanelOnErrorCallback) {
+    this.channelAdapter.onError(callback)
   }
 
   /** @internal */
@@ -832,7 +801,6 @@ export default class RealtimeChannel {
         return true
       }
 
-      // Old realtime implementation. TODO: Check this implementation later
       if (['broadcast', 'presence', 'postgres_changes'].includes(typeLower)) {
         if ('id' in bind) {
           const bindId = bind.id
