@@ -12,12 +12,12 @@ import {
 } from './lib/constants'
 
 import Serializer from './lib/serializer'
-import Timer from './phoenix/timer'
+import { Timer } from 'phoenix'
 import { httpEndpointURL } from './lib/transformers'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
 import SocketAdapter from './phoenix/socketAdapter'
-import { Message } from './phoenix/types'
+import type { Message } from './phoenix/types'
 
 type Fetch = typeof fetch
 
@@ -55,12 +55,6 @@ export interface WebSocketLikeConstructor {
   new (address: string | URL, subprotocols?: string | string[] | undefined): WebSocketLike
   // Allow additional properties that may exist on WebSocket constructors
   [key: string]: any
-}
-
-export interface WebSocketLikeError {
-  error: any
-  message: string
-  type: string
 }
 
 export type RealtimeClientOptions = {

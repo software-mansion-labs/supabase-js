@@ -11,7 +11,7 @@ import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
 import { BindingCallback, ChanelOnErrorCallback } from './phoenix/types'
-import Timer from './phoenix/timer'
+import { Timer } from 'phoenix'
 
 type ReplayOption = {
   since: number
@@ -149,7 +149,7 @@ export enum REALTIME_SUBSCRIBE_STATES {
 
 export const REALTIME_CHANNEL_STATES = CHANNEL_STATES
 
-interface PostgresChangesFilters {
+type PostgresChangesFilters = {
   postgres_changes: {
     id: string
     event: string
@@ -159,7 +159,7 @@ interface PostgresChangesFilters {
   }[]
 }
 
-interface Binding {
+type Binding = {
   type: string
   filter: { [key: string]: any }
   callback: Function
