@@ -663,6 +663,7 @@ export default class RealtimeClient {
     const heartbeatIntervalMs =
       options?.heartbeatIntervalMs ?? CONNECTION_TIMEOUTS.HEARTBEAT_INTERVAL
     const vsn = options?.vsn ?? DEFAULT_VSN
+    const transport = options?.transport ?? WebSocketFactory.getWebSocketConstructor()
     let params = options?.params
     let encode = options?.encode
     let decode = options?.decode
@@ -715,6 +716,7 @@ export default class RealtimeClient {
     return {
       ...options,
       timeout,
+      transport,
       heartbeatIntervalMs,
       vsn,
       params,
