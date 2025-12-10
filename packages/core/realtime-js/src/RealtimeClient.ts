@@ -170,6 +170,7 @@ export default class RealtimeClient {
     return this.socketAdapter.stateChangeCallbacks
   }
 
+  private _manuallySetToken: boolean = false
   private _authPromise: Promise<void> | null = null
   private _workerHeartbeatTimer: HeartbeatTimer = undefined
   private _pendingWorkerHeartbeatRef: string | null = null
@@ -365,7 +366,18 @@ export default class RealtimeClient {
    *
    * On callback used, it will set the value of the token internal to the client.
    *
+   * When a token is explicitly provided, it will be preserved across channel operations
+   * (including removeChannel and resubscribe). The `accessToken` callback will not be
+   * invoked until `setAuth()` is called without arguments.
+   *
    * @param token A JWT string to override the token set on the client.
+   *
+   * @example
+   * // Use a manual token (preserved across resubscribes, ignores accessToken callback)
+   * client.realtime.setAuth('my-custom-jwt')
+   *
+   * // Switch back to using the accessToken callback
+   * client.realtime.setAuth()
    */
   async setAuth(token: string | null = null): Promise<void> {
     this._authPromise = this._performAuth(token)
@@ -375,6 +387,16 @@ export default class RealtimeClient {
       this._authPromise = null
     }
   }
+
+  /**
+   * Returns true if the current access token was explicitly set via setAuth(token),
+   * false if it was obtained via the accessToken callback.
+   * @internal
+   */
+  _isManualToken(): boolean {
+    return this._manuallySetToken
+  }
+
   /**
    * Sends a heartbeat message if the socket is connected.
    */
@@ -472,14 +494,31 @@ export default class RealtimeClient {
    */
   private async _performAuth(token: string | null = null): Promise<void> {
     let tokenToSend: string | null
+    let isManualToken = false
 
     if (token) {
       tokenToSend = token
+      // Track if this is a manually-provided token
+      isManualToken = true
     } else if (this.accessToken) {
-      // Always call the accessToken callback to get fresh token
-      tokenToSend = await this.accessToken()
+      // Call the accessToken callback to get fresh token
+      try {
+        tokenToSend = await this.accessToken()
+      } catch (e) {
+        this.log('error', 'Error fetching access token from callback', e)
+        // Fall back to cached value if callback fails
+        tokenToSend = this.accessTokenValue
+      }
     } else {
       tokenToSend = this.accessTokenValue
+    }
+
+    // Track whether this token was manually set or fetched via callback
+    if (isManualToken) {
+      this._manuallySetToken = true
+    } else if (this.accessToken) {
+      // If we used the callback, clear the manual flag
+      this._manuallySetToken = false
     }
 
     if (this.accessTokenValue != tokenToSend) {
@@ -516,9 +555,12 @@ export default class RealtimeClient {
    * @internal
    */
   private _setAuthSafely(context = 'general'): void {
-    this.setAuth().catch((e) => {
-      this.log('error', `error setting auth in ${context}`, e)
-    })
+    // Only refresh auth if using callback-based tokens
+    if (!this._isManualToken()) {
+      this.setAuth().catch((e) => {
+        this.log('error', `Error setting auth in ${context}`, e)
+      })
+    }
   }
 
   /**

@@ -1,3 +1,57 @@
+## 2.87.1 (2025-12-09)
+
+### 🩹 Fixes
+
+- **auth:** skip navigator lock when persistSession is false ([#1928](https://github.com/supabase/supabase-js/pull/1928))
+- **realtime:** preserve custom JWT tokens across channel resubscribe ([#1908](https://github.com/supabase/supabase-js/pull/1908))
+- **realtime:** handle null values in postgres changes filter comparison ([#1918](https://github.com/supabase/supabase-js/pull/1918))
+
+### ❤️ Thank You
+
+- Liam
+- Vaibhav @7ttp
+
+## 2.87.0 (2025-12-08)
+
+### 🚀 Features
+
+- **storage:** align analytics from method with { data, error } pattern ([#1927](https://github.com/supabase/supabase-js/pull/1927))
+
+### 🩹 Fixes
+
+- **repo:** update lock file after dependabot to use npm 11 ([#1926](https://github.com/supabase/supabase-js/pull/1926))
+
+### ❤️ Thank You
+
+- Katerina Skroumpelou @mandarini
+
+## 2.86.2 (2025-12-04)
+
+### 🩹 Fixes
+
+- **storage:** correct QueryVectorsResponse to use vectors instead of matches ([#1922](https://github.com/supabase/supabase-js/pull/1922))
+
+### ❤️ Thank You
+
+- Katerina Skroumpelou @mandarini
+
+## 2.86.1 (2025-12-04)
+
+### 🩹 Fixes
+
+- **auth:** suppress getsession warning when getuser is called first ([#1898](https://github.com/supabase/supabase-js/pull/1898))
+- **auth:** code verifier remains in storage during edge cases ([#1759](https://github.com/supabase/supabase-js/pull/1759))
+- **postgrest:** cross-schema rpc setof type inference ([#1900](https://github.com/supabase/supabase-js/pull/1900))
+- **repo:** update lock file ([#1910](https://github.com/supabase/supabase-js/pull/1910))
+- **repo:** lock file issues ([#1919](https://github.com/supabase/supabase-js/pull/1919))
+- **repo:** update npm and install again ([#1920](https://github.com/supabase/supabase-js/pull/1920))
+- **supabase:** add esm wrapper to resolve module not found error in nuxt ([#1914](https://github.com/supabase/supabase-js/pull/1914))
+
+### ❤️ Thank You
+
+- Katerina Skroumpelou @mandarini
+- Vaibhav @7ttp
+
 ## 2.86.0 (2025-11-26)
 
 ### 🚀 Features
