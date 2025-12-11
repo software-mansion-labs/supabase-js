@@ -117,7 +117,8 @@ export default class SocketAdapter {
     return this.socket.connectionState() == CONNECTION_STATE.closing
   }
 
-  connectionState() {
+  connectionState(): ConnectionState {
+    // @ts-ignore - requires better typing and exposing type in phoenix
     return this.socket.connectionState()
   }
 
