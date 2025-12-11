@@ -2,7 +2,7 @@ import { Channel } from 'phoenix'
 import { CHANNEL_STATES, ChannelState } from '../lib/constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import SocketAdapter from './socketAdapter'
-import type { BindingCallback, ChanelOnErrorCallback } from './types'
+import type { BindingCallback, ChanelOnErrorCallback, Params } from './types'
 
 export default class ChannelAdapter {
   private channel: Channel
@@ -15,7 +15,7 @@ export default class ChannelAdapter {
   }
 
   get state() {
-    return this.channel.state as ChannelState
+    return this.channel.state
   }
 
   set state(state) {
@@ -24,10 +24,6 @@ export default class ChannelAdapter {
 
   get joinedOnce() {
     return this.channel.joinedOnce
-  }
-
-  set joinedOnce(joinedOnce) {
-    this.channel.joinedOnce = joinedOnce
   }
 
   get joinPush() {
@@ -44,12 +40,6 @@ export default class ChannelAdapter {
 
   off(event: string, refNumber?: number) {
     this.channel.off(event, refNumber)
-  }
-
-  trigger(type: string, payload: object, ref?: number) {
-    // TODO: check trigger function typing in phoenix
-    // @ts-ignore
-    this.channel.trigger(type, payload, ref, this.joinRef())
   }
 
   subscribe(timeout?: number) {
@@ -84,7 +74,7 @@ export default class ChannelAdapter {
     this.channel.joinPush.payload = () => payload
   }
 
-  joinRef(): number {
+  joinRef() {
     if (!this.channel.joinPush.ref) {
       throw new Error('Join push reference not found')
     }
@@ -120,6 +110,7 @@ export default class ChannelAdapter {
       bind: { event: string; ref: number }
     ) => boolean
   ) {
+    // @ts-ignore - it does not exist yet in phoenix
     this.channel.filterMessage = filterMessage
   }
 
@@ -130,12 +121,12 @@ export default class ChannelAdapter {
   /**
    * @internal
    */
-  getChannel(): Channel {
+  getChannel() {
     return this.channel
   }
 }
 
-function phoenixChannelParams(options: RealtimeChannelOptions): Record<string, unknown> {
+function phoenixChannelParams(options: RealtimeChannelOptions): Params {
   return {
     config: {
       ...{

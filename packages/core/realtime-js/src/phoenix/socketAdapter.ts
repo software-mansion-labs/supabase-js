@@ -69,7 +69,7 @@ export default class SocketAdapter {
     return this.socket.stateChangeCallbacks
   }
 
-  connect(): void {
+  connect() {
     this.socket.connect()
   }
 
@@ -85,7 +85,7 @@ export default class SocketAdapter {
     this.socket.log(kind, msg, data)
   }
 
-  makeRef(): string {
+  makeRef() {
     return this.socket.makeRef()
   }
 
@@ -105,30 +105,30 @@ export default class SocketAdapter {
     this.socket.onMessage(callback)
   }
 
-  isConnected(): boolean {
+  isConnected() {
     return this.socket.isConnected()
   }
 
-  isConnecting(): boolean {
+  isConnecting() {
     return this.socket.connectionState() == CONNECTION_STATE.connecting
   }
 
-  isDisconnecting(): boolean {
+  isDisconnecting() {
     return this.socket.connectionState() == CONNECTION_STATE.closing
   }
 
-  connectionState(): ConnectionState {
-    return this.socket.connectionState() as ConnectionState
+  connectionState() {
+    return this.socket.connectionState()
   }
 
-  endPointURL(): string {
+  endPointURL() {
     return this.socket.endPointURL()
   }
 
   /**
    * @internal
    */
-  getSocket(): Socket {
+  getSocket() {
     return this.socket
   }
 }

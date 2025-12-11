@@ -192,10 +192,6 @@ export default class RealtimeChannel {
     return this.channelAdapter.joinedOnce
   }
 
-  set joinedOnce(joinedOnce: boolean) {
-    this.channelAdapter.joinedOnce = joinedOnce
-  }
-
   get timeout() {
     return this.socket.timeout
   }
@@ -529,7 +525,7 @@ export default class RealtimeChannel {
         'channel',
         `resubscribe to ${this.topic} due to change in presence callbacks on joined channel`
       )
-      this.unsubscribe().then(async () => await this.subscribe())
+      this.unsubscribe().then(() => this.subscribe())
     }
     return this._on(type, filter, callback)
   }
