@@ -9,7 +9,7 @@ import ChannelAdapter from './channelAdapter'
 
 export default class PresenceAdapter {
   get state() {
-    return transformState(this.presence.state)
+    return PresenceAdapter.transformState(this.presence.state)
   }
 
   private presence: Presence
@@ -40,47 +40,48 @@ export default class PresenceAdapter {
       channel.getChannel().trigger('presence', { event: 'sync' })
     })
   }
-}
 
-/**
- * Remove 'metas' key
- * Change 'phx_ref' to 'presence_ref'
- * Remove 'phx_ref' and 'phx_ref_prev'
- *
- * @example
- * // returns {
- *  abc123: [
- *    { presence_ref: '2', user_id: 1 },
- *    { presence_ref: '3', user_id: 2 }
- *  ]
- * }
- * RealtimePresence.transformState({
- *  abc123: {
- *    metas: [
- *      { phx_ref: '2', phx_ref_prev: '1' user_id: 1 },
- *      { phx_ref: '3', user_id: 2 }
- *    ]
- *  }
- * })
- *
- */
-function transformState(state: State): RealtimePresenceState {
-  state = cloneState(state)
+  /**
+   * @private
+   * Remove 'metas' key
+   * Change 'phx_ref' to 'presence_ref'
+   * Remove 'phx_ref' and 'phx_ref_prev'
+   *
+   * @example
+   * // returns {
+   *  abc123: [
+   *    { presence_ref: '2', user_id: 1 },
+   *    { presence_ref: '3', user_id: 2 }
+   *  ]
+   * }
+   * RealtimePresence.transformState({
+   *  abc123: {
+   *    metas: [
+   *      { phx_ref: '2', phx_ref_prev: '1' user_id: 1 },
+   *      { phx_ref: '3', user_id: 2 }
+   *    ]
+   *  }
+   * })
+   *
+   */
+  static transformState(state: State): RealtimePresenceState {
+    state = cloneState(state)
 
-  return Object.getOwnPropertyNames(state).reduce((newState, key) => {
-    const presences = state[key]
+    return Object.getOwnPropertyNames(state).reduce((newState, key) => {
+      const presences = state[key]
 
-    newState[key] = presences.metas.map((presence) => {
-      presence['presence_ref'] = presence['phx_ref']
+      newState[key] = presences.metas.map((presence) => {
+        presence['presence_ref'] = presence['phx_ref']
 
-      delete presence['phx_ref']
-      delete presence['phx_ref_prev']
+        delete presence['phx_ref']
+        delete presence['phx_ref_prev']
 
-      return presence
-    }) as RealtimePresenceType[]
+        return presence
+      }) as RealtimePresenceType[]
 
-    return newState
-  }, {} as RealtimePresenceState)
+      return newState
+    }, {} as RealtimePresenceState)
+  }
 }
 
 function cloneState(state: State): State {
