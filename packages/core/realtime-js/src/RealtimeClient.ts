@@ -274,12 +274,14 @@ export default class RealtimeClient {
    * @param code A numeric status code to send on disconnect.
    * @param reason A custom reason for the disconnect.
    */
-  disconnect(code?: number, reason?: string): void {
+  disconnect(code?: number, reason?: string) {
     if (this.isDisconnecting()) {
       return
     }
 
-    this.socketAdapter.disconnect(code, reason)
+    this.socketAdapter.disconnect(code, reason).then(() => {
+      return
+    })
   }
 
   /**
