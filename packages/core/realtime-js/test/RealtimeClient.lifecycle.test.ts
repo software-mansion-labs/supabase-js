@@ -91,7 +91,7 @@ describe('constructor', () => {
 describe('connect with WebSocket', () => {
   test('establishes websocket connection with endpoint', () => {
     testSetup.socket.connect()
-    let conn = testSetup.socket.conn
+    let conn = testSetup.socket.socketAdapter.getSocket().conn as WebSocket
     assert.ok(conn, 'connection should exist')
     assert.equal(conn.url, testSetup.socket.endpointURL())
   })
@@ -99,10 +99,10 @@ describe('connect with WebSocket', () => {
   test('is idempotent', () => {
     testSetup.socket.connect()
 
-    let conn = testSetup.socket.conn
+    let conn = testSetup.socket.socketAdapter.getSocket().conn
 
     testSetup.socket.connect()
-    assert.deepStrictEqual(conn, testSetup.socket.conn)
+    assert.deepStrictEqual(conn, testSetup.socket.socketAdapter.getSocket().conn)
   })
 
   test('handles WebSocket factory errors gracefully', async () => {
