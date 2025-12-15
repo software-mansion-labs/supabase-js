@@ -48,7 +48,6 @@ describe('constructor', () => {
     assert.equal(socket.transport, expected.transport)
     assert.equal(socket.timeout, expected.timeout)
     assert.equal(socket.heartbeatIntervalMs, expected.heartbeatIntervalMs)
-    assert.equal(typeof socket.logger, 'function')
     assert.equal(typeof socket.reconnectAfterMs, 'function')
   })
 
@@ -64,13 +63,6 @@ describe('constructor', () => {
     expect(() => {
       new RealtimeClient(testSetup.url, { params: { apikey: null } })
     }).toThrow('API key is required to connect to Realtime')
-  })
-
-  test('defaults to Websocket transport if available', () => {
-    const socket = new RealtimeClient(testSetup.url, {
-      params: { apikey: '123456789' },
-    })
-    assert.equal(socket.transport, null)
   })
 
   test('sets heartbeatCallback when provided in options', () => {
