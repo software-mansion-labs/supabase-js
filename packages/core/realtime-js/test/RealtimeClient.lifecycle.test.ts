@@ -4,6 +4,7 @@ import { WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
 import { testBuilders, EnhancedTestSetup } from './helpers/setup'
 import { fixtures, mocks } from './helpers/lifecycle'
+import { CONNECTION_STATE } from '../src/lib/constants.js'
 
 let testSetup: EnhancedTestSetup
 
@@ -106,24 +107,30 @@ describe('connect with WebSocket', () => {
   })
 
   test('handles WebSocket factory errors gracefully', async () => {
+    // Mock WebSocketFactory to throw an error
+    const { default: WebSocketFactory } = await import('../src/lib/websocket-factory.js')
+    const originalGetWebsocketConstructor = WebSocketFactory.getWebSocketConstructor
+    WebSocketFactory.getWebSocketConstructor = vi.fn(() => {
+      return class MockWebSocket {
+        constructor() {
+          throw new Error('WebSocket not available in test environment')
+        }
+      } as unknown as typeof WebSocket
+    })
+
     // Create a socket without transport to trigger WebSocketFactory usage
     const socketWithoutTransport = new RealtimeClient(testSetup.url, {
       params: { apikey: '123456789' },
-    })
-
-    // Mock WebSocketFactory to throw an error
-    const { default: WebSocketFactory } = await import('../src/lib/websocket-factory.js')
-    const originalCreateWebSocket = WebSocketFactory.createWebSocket
-    WebSocketFactory.createWebSocket = vi.fn(() => {
-      throw new Error('WebSocket not available in test environment')
     })
 
     expect(() => {
       socketWithoutTransport.connect()
     }).toThrow('WebSocket not available: WebSocket not available in test environment')
 
+    assert.equal(socketWithoutTransport.connectionState(), CONNECTION_STATE.closed)
+
     // Restore original method
-    WebSocketFactory.createWebSocket = originalCreateWebSocket
+    WebSocketFactory.getWebSocketConstructor = originalGetWebsocketConstructor
   })
 })
 
