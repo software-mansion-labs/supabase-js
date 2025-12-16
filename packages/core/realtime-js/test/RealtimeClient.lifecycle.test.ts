@@ -1,6 +1,6 @@
 import assert from 'assert'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { WebSocket as MockWebSocket } from 'mock-socket'
+import { Client, WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
 import { testBuilders, EnhancedTestSetup } from './helpers/setup'
 import { fixtures, mocks } from './helpers/lifecycle'
@@ -90,11 +90,24 @@ describe('constructor', () => {
 })
 
 describe('connect with WebSocket', () => {
-  test('establishes websocket connection with endpoint', () => {
-    testSetup.socket.connect()
-    let conn = testSetup.socket.socketAdapter.getSocket().conn as WebSocket
-    assert.ok(conn, 'connection should exist')
-    assert.equal(conn.url, testSetup.socket.endpointURL())
+  test('establishes websocket connection with endpoint', async () => {
+    let connected = false
+    let testClient = testBuilders.standardClient({
+      preparation: (server) => {
+        server.on('connection', (socket) => {
+          if (socket.readyState == socket.OPEN) {
+            connected = true
+          }
+        })
+      },
+    })
+
+    testClient.socket.connect()
+
+    await vi.waitFor(() => expect(connected).toBe(true), { timeout: 2000, interval: 100 })
+
+    assert.equal(connected, true)
+    testClient.cleanup()
   })
 
   test('is idempotent', () => {
@@ -135,29 +148,28 @@ describe('connect with WebSocket', () => {
 })
 
 describe('disconnect', () => {
-  test('removes existing connection', () => {
+  test('removes existing connection', async () => {
     testSetup.socket.connect()
-    testSetup.socket.disconnect()
+    await testSetup.socket.disconnect()
 
-    assert.equal(testSetup.socket.conn, null)
+    assert.equal(testSetup.socket.socketAdapter.getSocket().conn, null)
   })
 
-  test('calls callback', () => {
-    let count = 0
+  test('calls connection close callback', async () => {
+    const expectedCode = 1000
+    const expectedReason = 'reason'
+
+    const closeSpy = vi.spyOn(MockWebSocket.prototype, 'close')
+
     testSetup.socket.connect()
-    testSetup.socket.disconnect()
-    count++
 
-    assert.equal(count, 1)
-  })
+    await vi.waitFor(() => {
+      expect(testSetup.socket.socketAdapter.getSocket().conn).not.toBeNull()
+    })
 
-  test('calls connection close callback', () => {
-    testSetup.socket.connect()
-    const spy = vi.spyOn(testSetup.socket.conn!, 'close')
+    testSetup.socket.disconnect(expectedCode, expectedReason)
 
-    testSetup.socket.disconnect(1000, 'reason')
-
-    expect(spy).toHaveBeenCalledWith(1000, 'reason')
+    expect(closeSpy).toHaveBeenCalledWith(expectedCode, expectedReason)
   })
 
   test('does not throw when no connection', () => {
@@ -187,33 +199,56 @@ describe('connectionState', () => {
 })
 
 describe('Connection state management', () => {
-  test('should track connection states correctly', () => {
-    assert.equal(testSetup.socket.isConnecting(), false)
-    assert.equal(testSetup.socket.isDisconnecting(), false)
+  test('should track connection states correctly', async () => {
+    let state = 'closed'
+    let testClient = testBuilders.standardClient({
+      preparation: (server) => {
+        server.on('connection', (socket) => {
+          if (socket.readyState == socket.OPEN) {
+            state = 'connected'
+          }
+          socket.on('close', () => {
+            state = 'closed'
+          })
+        })
+      },
+    })
 
-    testSetup.socket.connect()
-    assert.equal(testSetup.socket.isConnecting(), true)
+    assert.equal(testClient.socket.isConnecting(), false)
+    assert.equal(testClient.socket.isDisconnecting(), false)
 
-    testSetup.socket.disconnect()
-    assert.equal(testSetup.socket.isDisconnecting(), true)
+    testClient.socket.connect()
+    state = 'connecting'
+    assert.equal(testClient.socket.isConnecting(), true)
+
+    await vi.waitFor(() => expect(state).toBe('connected'), { timeout: 2000 })
+    assert.equal(testClient.socket.isConnected(), true)
+
+    testClient.socket.disconnect()
+    assert.equal(testClient.socket.isDisconnecting(), true)
+
+    await vi.waitFor(() => expect(state).toBe('closed'), { timeout: 2000 })
+    assert.equal(testClient.socket.connectionState(), CONNECTION_STATE.closed)
   })
 
-  test('should handle connection state transitions on WebSocket events', () => {
-    testSetup.socket.connect()
-    assert.equal(testSetup.socket.isConnecting(), true)
-
-    // Simulate connection open
-    const openEvent = new Event('open')
-    testSetup.socket.conn?.onopen?.(openEvent)
-    assert.equal(testSetup.socket.isConnecting(), false)
-
-    // Simulate connection close
-    const closeEvent = new CloseEvent('close', {
-      code: 1000,
-      reason: 'Normal close',
-      wasClean: true,
+  test('should handle connection state transitions on WebSocket events', async () => {
+    let serverSocket: Client
+    let testClient = testBuilders.standardClient({
+      preparation: (server) => {
+        server.on('connection', (socket) => {
+          serverSocket = socket
+        })
+      },
     })
-    testSetup.socket.conn?.onclose?.(closeEvent)
+
+    testClient.socket.connect()
+    assert.equal(testClient.socket.isConnecting(), true)
+
+    await vi.waitFor(() => expect(serverSocket.readyState).toBe(WebSocket.OPEN))
+    assert.equal(testClient.socket.isConnecting(), false)
+
+    // @ts-ignore it will be defined
+    serverSocket.close({ code: 1000, reason: 'Normal close', wasClean: true })
     assert.equal(testSetup.socket.isDisconnecting(), false)
   })
 })
@@ -227,7 +262,7 @@ describe('Race condition prevention', () => {
 
     // Should only have one connection attempt
     assert.equal(testSetup.socket.isConnecting(), true)
-    assert.ok(testSetup.socket.conn)
+    assert.ok(testSetup.socket.socketAdapter.getSocket().conn)
   })
 
   test('should prevent connection during disconnection', () => {

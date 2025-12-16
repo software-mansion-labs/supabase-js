@@ -90,6 +90,7 @@ export const fixtures = {
         channelsLength: 0,
         sendBufferLength: 0,
         ref: 0,
+        transport: WebSocket,
         timeout: 10000,
         heartbeatIntervalMs: 25000,
       },
@@ -99,12 +100,14 @@ export const fixtures = {
       options: {
         timeout: 40000,
         heartbeatIntervalMs: 60000,
+        transport: undefined, // Will be set by test
         params: { one: 'two', apikey: '123456789' },
       },
       expected: {
         channelsLength: 0,
         sendBufferLength: 0,
         ref: 0,
+        transport: undefined, // Will be overridden
         timeout: 40000,
         heartbeatIntervalMs: 60000,
       },
@@ -119,6 +122,7 @@ export const fixtures = {
         channelsLength: 0,
         sendBufferLength: 0,
         ref: 0,
+        transport: WebSocket,
         timeout: 10000,
         heartbeatIntervalMs: 25000,
       },
