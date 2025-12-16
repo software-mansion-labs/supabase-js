@@ -229,6 +229,7 @@ describe('Connection state management', () => {
 
     await vi.waitFor(() => expect(state).toBe('closed'), { timeout: 2000 })
     assert.equal(testClient.socket.connectionState(), CONNECTION_STATE.closed)
+    testClient.cleanup()
   })
 
   test('should handle connection state transitions on WebSocket events', async () => {
@@ -249,6 +250,7 @@ describe('Connection state management', () => {
     // @ts-ignore it will be defined
     serverSocket.close({ code: 1000, reason: 'Normal close', wasClean: true })
     assert.equal(testSetup.socket.isDisconnecting(), false)
+    testClient.cleanup()
   })
 })
 
