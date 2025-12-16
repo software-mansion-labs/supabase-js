@@ -1,13 +1,11 @@
 import { Presence } from 'phoenix'
-import type { PresenceState } from 'phoenix'
+import type { PresenceStates } from './types'
 import type {
   RealtimePresenceOptions,
   RealtimePresenceState,
   Presence as RealtimePresenceType,
 } from '../RealtimePresence'
 import ChannelAdapter from './channelAdapter'
-
-type PresenceStates = Record<string, PresenceState>
 
 export default class PresenceAdapter {
   get state() {
