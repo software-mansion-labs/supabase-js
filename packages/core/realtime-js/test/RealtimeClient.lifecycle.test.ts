@@ -34,12 +34,12 @@ describe('constructor', () => {
       },
     }))
   )('$name', ({ options, expected }) => {
-    const socket = new RealtimeClient(testSetup.url, options)
+    const socket = new RealtimeClient(testSetup.realtimeUrl, options)
 
     assert.equal(socket.getChannels().length, expected.channelsLength)
     assert.equal(socket.sendBuffer.length, expected.sendBufferLength)
     assert.equal(socket.ref, expected.ref)
-    assert.equal(socket.endPoint, `${testSetup.url}/websocket`)
+    assert.equal(socket.endPoint, testSetup.wssUrl)
     assert.deepEqual(socket.stateChangeCallbacks, {
       open: [],
       close: [],
@@ -54,21 +54,21 @@ describe('constructor', () => {
 
   test('throws error when API key is missing', () => {
     expect(() => {
-      new RealtimeClient(testSetup.url, {})
+      new RealtimeClient(testSetup.realtimeUrl, {})
     }).toThrow('API key is required to connect to Realtime')
 
     expect(() => {
-      new RealtimeClient(testSetup.url, { params: {} })
+      new RealtimeClient(testSetup.realtimeUrl, { params: {} })
     }).toThrow('API key is required to connect to Realtime')
 
     expect(() => {
-      new RealtimeClient(testSetup.url, { params: { apikey: null } })
+      new RealtimeClient(testSetup.realtimeUrl, { params: { apikey: null } })
     }).toThrow('API key is required to connect to Realtime')
   })
 
   test('sets heartbeatCallback when provided in options', () => {
     const mockCallback = () => {}
-    const socket = new RealtimeClient(testSetup.url, {
+    const socket = new RealtimeClient(testSetup.realtimeUrl, {
       params: { apikey: '123456789' },
       heartbeatCallback: mockCallback,
     })
@@ -77,7 +77,7 @@ describe('constructor', () => {
   })
 
   test('defaults heartbeatCallback to noop when not provided', () => {
-    const socket = new RealtimeClient(testSetup.url, {
+    const socket = new RealtimeClient(testSetup.realtimeUrl, {
       params: { apikey: '123456789' },
     })
 
@@ -119,7 +119,7 @@ describe('connect with WebSocket', () => {
     })
 
     // Create a socket without transport to trigger WebSocketFactory usage
-    const socketWithoutTransport = new RealtimeClient(testSetup.url, {
+    const socketWithoutTransport = new RealtimeClient(testSetup.realtimeUrl, {
       params: { apikey: '123456789' },
     })
 
