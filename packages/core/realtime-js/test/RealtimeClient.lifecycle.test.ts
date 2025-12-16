@@ -90,11 +90,28 @@ describe('constructor', () => {
 })
 
 describe('connect with WebSocket', () => {
-  test('establishes websocket connection with endpoint', () => {
-    testSetup.socket.connect()
-    let conn = testSetup.socket.socketAdapter.getSocket().conn as WebSocket
-    assert.ok(conn, 'connection should exist')
-    assert.equal(conn.url, testSetup.socket.endpointURL())
+  test('establishes websocket connection with endpoint', async () => {
+    let connected = false
+    let testClient = testBuilders.standardClient({
+      preparation: (server) => {
+        server.on('connection', (socket) => {
+          if (socket.readyState == socket.OPEN) {
+            connected = true
+          }
+        })
+      },
+    })
+
+    testClient.socket.connect()
+
+    await new Promise((resolve) => {
+      setInterval(() => {
+        if (connected) resolve('connected')
+      }, 100)
+      setTimeout(() => resolve('not connected'), 2000)
+    })
+
+    assert.equal(connected, true)
   })
 
   test('is idempotent', () => {
@@ -135,26 +152,18 @@ describe('connect with WebSocket', () => {
 })
 
 describe('disconnect', () => {
-  test('removes existing connection', () => {
+  test('removes existing connection', async () => {
     testSetup.socket.connect()
-    testSetup.socket.disconnect()
+    await testSetup.socket.disconnect()
 
-    assert.equal(testSetup.socket.conn, null)
-  })
-
-  test('calls callback', () => {
-    let count = 0
-    testSetup.socket.connect()
-    testSetup.socket.disconnect()
-    count++
-
-    assert.equal(count, 1)
+    assert.equal(testSetup.socket.socketAdapter.getSocket().conn, null)
   })
 
   test('calls connection close callback', () => {
-    testSetup.socket.connect()
-    const spy = vi.spyOn(testSetup.socket.conn!, 'close')
+    const websocket = testSetup.socket.socketAdapter.getSocket().conn as WebSocket
+    const spy = vi.spyOn(websocket, 'close')
 
+    testSetup.socket.connect()
     testSetup.socket.disconnect(1000, 'reason')
 
     expect(spy).toHaveBeenCalledWith(1000, 'reason')
@@ -201,10 +210,11 @@ describe('Connection state management', () => {
   test('should handle connection state transitions on WebSocket events', () => {
     testSetup.socket.connect()
     assert.equal(testSetup.socket.isConnecting(), true)
+    let conn = testSetup.socket.socketAdapter.getSocket().conn as WebSocket
 
     // Simulate connection open
     const openEvent = new Event('open')
-    testSetup.socket.conn?.onopen?.(openEvent)
+    conn?.onopen?.(openEvent)
     assert.equal(testSetup.socket.isConnecting(), false)
 
     // Simulate connection close
@@ -213,7 +223,7 @@ describe('Connection state management', () => {
       reason: 'Normal close',
       wasClean: true,
     })
-    testSetup.socket.conn?.onclose?.(closeEvent)
+    conn?.onclose?.(closeEvent)
     assert.equal(testSetup.socket.isDisconnecting(), false)
   })
 })
@@ -227,7 +237,7 @@ describe('Race condition prevention', () => {
 
     // Should only have one connection attempt
     assert.equal(testSetup.socket.isConnecting(), true)
-    assert.ok(testSetup.socket.conn)
+    assert.ok(testSetup.socket.socketAdapter.getSocket().conn)
   })
 
   test('should prevent connection during disconnection', () => {
