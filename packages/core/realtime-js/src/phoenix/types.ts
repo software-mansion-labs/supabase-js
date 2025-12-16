@@ -3,14 +3,12 @@ export type {
   Channel,
   Message,
   Params,
-  OnCloseCallback,
-  OnErrorCallback,
-  OnMessageCallback,
-  OnOpenCallback,
-  OnSync,
-  State,
   SocketOptions,
-  BindingCallback,
+  ChannelBindingCallback,
+  SocketOnOpen,
+  SocketOnError,
+  SocketOnMessage,
+  SocketOnClose,
 } from 'phoenix'
 
 import type { Channel } from 'phoenix'

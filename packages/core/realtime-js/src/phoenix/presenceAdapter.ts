@@ -1,11 +1,13 @@
 import { Presence } from 'phoenix'
-import type { State } from 'phoenix'
+import type { PresenceState } from 'phoenix'
 import type {
   RealtimePresenceOptions,
   RealtimePresenceState,
   Presence as RealtimePresenceType,
 } from '../RealtimePresence'
 import ChannelAdapter from './channelAdapter'
+
+type PresenceStates = Record<string, PresenceState>
 
 export default class PresenceAdapter {
   get state() {
@@ -64,7 +66,7 @@ export default class PresenceAdapter {
    * })
    *
    */
-  static transformState(state: State): RealtimePresenceState {
+  static transformState(state: PresenceStates): RealtimePresenceState {
     state = cloneState(state)
 
     return Object.getOwnPropertyNames(state).reduce((newState, key) => {
@@ -84,7 +86,7 @@ export default class PresenceAdapter {
   }
 }
 
-function cloneState(state: State): State {
+function cloneState(state: PresenceStates): PresenceStates {
   return JSON.parse(JSON.stringify(state))
 }
 
