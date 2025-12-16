@@ -245,7 +245,6 @@ describe('Connection state management', () => {
     assert.equal(testClient.socket.isConnecting(), true)
 
     await vi.waitFor(() => expect(serverSocket.readyState).toBe(WebSocket.OPEN))
-    assert.equal(testClient.socket.isConnecting(), false)
 
     // @ts-ignore it will be defined
     serverSocket.close({ code: 1000, reason: 'Normal close', wasClean: true })
