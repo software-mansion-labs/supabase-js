@@ -4,85 +4,57 @@ import { WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
 import { CHANNEL_STATES, DEFAULT_VERSION } from '../src/lib/constants'
 import { testBuilders, EnhancedTestSetup, testSuites } from './helpers/setup'
-import { utils, authHelpers as testHelpers, authBuilders } from './helpers/auth'
+import { utils, authHelpers as testHelpers } from './helpers/auth'
 
 let testSetup: EnhancedTestSetup
+let dataSpy: Mock<(topic: string, event: string, payload: any) => null>
 
 beforeEach(() => {
-  testSetup = testBuilders.standardClient()
+  dataSpy = vi.fn()
+  testSetup = testBuilders.standardClient({
+    preparation: (server) => {
+      server.on('connection', (socket) => {
+        socket.on('message', (message) => {
+          const { topic, event, payload, ref } = JSON.parse(message as string)
+          dataSpy(topic, event, payload)
+
+          // Proper response for subscribe
+          if (event == 'phx_join') {
+            socket.send(
+              JSON.stringify({
+                event: 'phx_reply',
+                payload: { status: 'ok', response: { postgres_changes: [] } },
+                ref: ref,
+                topic: topic,
+              })
+            )
+          }
+        })
+      })
+    },
+  })
 })
 
 afterEach(() => {
+  dataSpy.mockClear()
   testSetup.cleanup()
   testSetup.socket.removeAllChannels()
 })
 
 describe('token setting and updates', () => {
   test("sets access token, updates channels' join payload, and pushes token to channels", async () => {
-    testSetup.cleanup()
-    let accessTokenMessages: Array<{ topic: string; access_token: string }> = []
-    testSetup = testBuilders.standardClient({
-      preparation: (server) => {
-        server.on('connection', (socket) => {
-          socket.on('message', (message) => {
-            const data = JSON.parse(message as string)
-            if (data.event == 'access_token') {
-              accessTokenMessages.push({
-                topic: data.topic,
-                access_token: data.payload.access_token,
-              })
-            } else {
-              const response = {
-                event: 'phx_reply',
-                payload: { status: 'ok', response: { postgres_changes: [] } },
-                ref: data.ref,
-                topic: data.topic,
-              }
+    const { channel1, channel2, channel3 } = await testHelpers.setupAuthTestChannels(
+      testSetup.socket
+    )
 
-              socket.send(JSON.stringify(response))
-            }
-          })
-        })
-      },
-    })
-
-    const channel1 = testSetup.socket.channel('test-topic1')
-    const channel2 = testSetup.socket.channel('test-topic2')
-    const channel3 = testSetup.socket.channel('test-topic3')
-
-    // Subscribe to channels
-    let subscribedChan1 = false
-    let subscribedChan3 = false
-
-    channel1.subscribe((status) => {
-      if (status == 'SUBSCRIBED') subscribedChan1 = true
-    })
-    channel3.subscribe((status) => {
-      if (status == 'SUBSCRIBED') subscribedChan3 = true
-    })
-
-    await vi.waitFor(() => expect(subscribedChan1).toBe(true))
-    await vi.waitFor(() => expect(subscribedChan3).toBe(true))
+    dataSpy.mockClear()
 
     const token = utils.generateJWT('1h')
     await testSetup.socket.setAuth(token)
 
     assert.strictEqual(testSetup.socket.accessTokenValue, token)
 
-    // Ensure that only 2 access token messages were sent
-    await vi.waitFor(() => {
-      const accessTokenMessage1 = accessTokenMessages.find(
-        ({ topic, access_token }) => topic === 'realtime:test-topic1' && access_token === token
-      )
-      const accessTokenMessage3 = accessTokenMessages.find(
-        ({ topic, access_token }) => topic === 'realtime:test-topic3' && access_token === token
-      )
-
-      if (!(accessTokenMessage1 && accessTokenMessage3))
-        throw new Error(`not found: ${accessTokenMessage1} ${accessTokenMessage3}`)
-    })
-
-    assert.equal(accessTokenMessages.length, 2)
+    testHelpers.assertPushes(token, dataSpy, ['test-topic1', 'test-topic2'])
 
     // Check joinPush payload
     assert.deepEqual(channel1.joinPush.payload(), {
@@ -102,13 +74,9 @@ describe('token setting and updates', () => {
   })
 
   test("does not send message if token hasn't changed", async () => {
-    const channel = testSetup.socket.channel('test-topic')
-    let joined = false
-    channel.subscribe((_status) => {
-      joined = true
-    })
+    const channel = await testHelpers.setupAuthTestChannel(testSetup.socket)
 
-    await vi.waitFor(() => expect(joined).toBe(true))
+    dataSpy.mockClear()
 
     const token = utils.generateJWT('4h')
     assert.notEqual(token, channel.socket.accessTokenValue)
@@ -118,21 +86,27 @@ describe('token setting and updates', () => {
 
     await vi.waitFor(() => {
       expect(dataSpy).toBeCalledWith('realtime:test-topic', 'access_token', { access_token: token })
-      expect(dataSpy).toBeCalledTimes(2) // phx_join and access_token
+      expect(dataSpy).toBeCalledTimes(1)
     })
 
     assert.strictEqual(testSetup.socket.accessTokenValue, token)
   })
 
   test("sets access token, updates channels' join payload, and pushes token to channels if is not a jwt", async () => {
-    const channels = testHelpers.setupAuthTestChannels(testSetup.socket)
-    const spies = testHelpers.setupAuthTestSpies(channels)
+    const channels = await testHelpers.setupAuthTestChannels(testSetup.socket)
 
     const new_token = 'sb-key'
     await testSetup.socket.setAuth(new_token)
 
+    dataSpy.mockClear()
+
     assert.strictEqual(testSetup.socket.accessTokenValue, new_token)
-    testHelpers.assertAuthTestResults(new_token, spies, true)
+
+    testHelpers.assertPushes(new_token, dataSpy, [
+      channels.channel1.subTopic,
+      channels.channel2.subTopic,
+      channels.channel3.subTopic,
+    ])
   })
 
   test("sets access token using callback, updates channels' join payload, and pushes token to channels", async () => {
