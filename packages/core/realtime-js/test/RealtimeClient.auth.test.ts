@@ -19,49 +19,83 @@ afterEach(() => {
 
 describe('token setting and updates', () => {
   test("sets access token, updates channels' join payload, and pushes token to channels", async () => {
+    testSetup.cleanup()
+    let accessTokenMessages: Array<{ topic: string; access_token: string }> = []
+    testSetup = testBuilders.standardClient({
+      preparation: (server) => {
+        server.on('connection', (socket) => {
+          socket.on('message', (message) => {
+            const data = JSON.parse(message as string)
+            if (data.event == 'access_token') {
+              accessTokenMessages.push({
+                topic: data.topic,
+                access_token: data.payload.access_token,
+              })
+            } else {
+              const response = {
+                event: 'phx_reply',
+                payload: { status: 'ok', response: { postgres_changes: [] } },
+                ref: data.ref,
+                topic: data.topic,
+              }
+
+              socket.send(JSON.stringify(response))
+            }
+          })
+        })
+      },
+    })
+
     const channel1 = testSetup.socket.channel('test-topic1')
     const channel2 = testSetup.socket.channel('test-topic2')
     const channel3 = testSetup.socket.channel('test-topic3')
 
-    channel1.state = CHANNEL_STATES.joined
-    channel2.state = CHANNEL_STATES.closed
-    channel3.state = CHANNEL_STATES.joined
+    // Subscribe to channels
+    let subscribedChan1 = false
+    let subscribedChan3 = false
 
-    channel1.joinedOnce = true
-    channel2.joinedOnce = false
-    channel3.joinedOnce = true
+    channel1.subscribe((status) => {
+      if (status == 'SUBSCRIBED') subscribedChan1 = true
+    })
+    channel3.subscribe((status) => {
+      if (status == 'SUBSCRIBED') subscribedChan3 = true
+    })
 
-    const pushStub1 = vi.spyOn(channel1, '_push')
-    const pushStub2 = vi.spyOn(channel2, '_push')
-    const pushStub3 = vi.spyOn(channel3, '_push')
+    await vi.waitFor(() => expect(subscribedChan1).toBe(true))
+    await vi.waitFor(() => expect(subscribedChan3).toBe(true))
 
-    const payloadStub1 = vi.spyOn(channel1, 'updateJoinPayload')
-    const payloadStub2 = vi.spyOn(channel2, 'updateJoinPayload')
-    const payloadStub3 = vi.spyOn(channel3, 'updateJoinPayload')
     const token = utils.generateJWT('1h')
     await testSetup.socket.setAuth(token)
 
     assert.strictEqual(testSetup.socket.accessTokenValue, token)
 
-    expect(pushStub1).toHaveBeenCalledWith('access_token', {
-      access_token: token,
-    })
-    expect(pushStub2).not.toHaveBeenCalledWith('access_token', {
-      access_token: token,
-    })
-    expect(pushStub3).toHaveBeenCalledWith('access_token', {
-      access_token: token,
+    // Ensure that only 2 access token messages were sent
+    await vi.waitFor(() => {
+      const accessTokenMessage1 = accessTokenMessages.find(
+        ({ topic, access_token }) => topic === 'realtime:test-topic1' && access_token === token
+      )
+      const accessTokenMessage3 = accessTokenMessages.find(
+        ({ topic, access_token }) => topic === 'realtime:test-topic3' && access_token === token
+      )
+
+      if (!(accessTokenMessage1 && accessTokenMessage3))
+        throw new Error(`not found: ${accessTokenMessage1} ${accessTokenMessage3}`)
     })
 
-    expect(payloadStub1).toHaveBeenCalledWith({
+    assert.equal(accessTokenMessages.length, 2)
+
+    // Check joinPush payload
+    assert.deepEqual(channel1.joinPush.payload(), {
       access_token: token,
       version: DEFAULT_VERSION,
     })
-    expect(payloadStub2).toHaveBeenCalledWith({
+
+    assert.deepEqual(channel2.joinPush.payload(), {
       access_token: token,
       version: DEFAULT_VERSION,
     })
-    expect(payloadStub3).toHaveBeenCalledWith({
+
+    assert.deepEqual(channel3.joinPush.payload(), {
       access_token: token,
       version: DEFAULT_VERSION,
     })
