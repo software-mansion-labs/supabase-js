@@ -102,19 +102,26 @@ describe('token setting and updates', () => {
   })
 
   test("does not send message if token hasn't changed", async () => {
-    const channel = testHelpers.setupSingleAuthTestChannel(testSetup.socket)
-    const payloadSpy = vi.spyOn(channel, 'updateJoinPayload')
-    const token = utils.generateJWT('1h')
+    const channel = testSetup.socket.channel('test-topic')
+    let joined = false
+    channel.subscribe((_status) => {
+      joined = true
+    })
+
+    await vi.waitFor(() => expect(joined).toBe(true))
+
+    const token = utils.generateJWT('4h')
+    assert.notEqual(token, channel.socket.accessTokenValue)
 
     await testSetup.socket.setAuth(token)
     await testSetup.socket.setAuth(token)
+
+    await vi.waitFor(() => {
+      expect(dataSpy).toBeCalledWith('realtime:test-topic', 'access_token', { access_token: token })
+      expect(dataSpy).toBeCalledTimes(2) // phx_join and access_token
+    })
 
     assert.strictEqual(testSetup.socket.accessTokenValue, token)
-    expect(payloadSpy).toHaveBeenCalledTimes(1)
-    expect(payloadSpy).toHaveBeenCalledWith({
-      access_token: token,
-      version: DEFAULT_VERSION,
-    })
   })
 
   test("sets access token, updates channels' join payload, and pushes token to channels if is not a jwt", async () => {
