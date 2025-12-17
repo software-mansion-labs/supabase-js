@@ -10,7 +10,7 @@ import type {
 import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
-import { BindingCallback, ChanelOnErrorCallback } from './phoenix/types'
+import { ChannelBindingCallback, ChanelOnErrorCallback } from './phoenix/types'
 import { Timer } from 'phoenix'
 
 type ReplayOption = {
@@ -713,7 +713,7 @@ export default class RealtimeChannel {
   }
 
   /** @internal */
-  _on(type: string, filter: { [key: string]: any }, callback: BindingCallback) {
+  _on(type: string, filter: { [key: string]: any }, callback: ChannelBindingCallback) {
     const typeLower = type.toLocaleLowerCase()
 
     const ref = this.channelAdapter.on(type, callback)
@@ -741,7 +741,7 @@ export default class RealtimeChannel {
    *
    * @internal
    */
-  private _onClose(callback: BindingCallback) {
+  private _onClose(callback: ChannelBindingCallback) {
     this.channelAdapter.onClose(callback)
   }
 
