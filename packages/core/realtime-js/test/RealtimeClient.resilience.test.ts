@@ -24,10 +24,11 @@ describe('Network failure scenarios', () => {
       wasClean: false,
     })
 
-    testSetup.socket.conn?.onclose?.(closeEvent)
+    // @ts-ignore - accessing private property for testing
+    testSetup.socket.socketAdapter.socket.conn?.onclose(closeEvent);
 
     // Verify reconnection is scheduled
-    assert.ok(testSetup.socket.reconnectTimer.timer)
+    assert.ok(testSetup.socket.socketAdapter.getSocket().reconnectTimer.timer)
   })
 
   test('should not schedule reconnection on manual disconnect', () => {
@@ -35,7 +36,7 @@ describe('Network failure scenarios', () => {
     testSetup.socket.disconnect()
 
     // Verify no reconnection is scheduled
-    assert.equal(testSetup.socket.reconnectTimer.timer, undefined)
+    assert.equal(testSetup.socket.socketAdapter.getSocket().reconnectTimer.timer, undefined)
   })
 })
 
@@ -79,7 +80,7 @@ describe('Reconnection timer logic', () => {
     }
 
     // Trigger reconnection
-    testSetup.socket.reconnectTimer.callback()
+    testSetup.socket.reconnectTimer!.callback()
 
     // Should not have called connect immediately
     assert.equal(connectCalls, 0)
