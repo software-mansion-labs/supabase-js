@@ -1,37 +1,18 @@
 import assert from 'assert'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, Mock, test, vi } from 'vitest'
 import { WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
 import { CHANNEL_STATES, DEFAULT_VERSION } from '../src/lib/constants'
-import { testBuilders, EnhancedTestSetup, testSuites } from './helpers/setup'
+import { testBuilders, EnhancedTestSetup, testSuites, DataSpy, spyOnMessage } from './helpers/setup'
 import { utils, authHelpers as testHelpers } from './helpers/auth'
 
 let testSetup: EnhancedTestSetup
-let dataSpy: Mock<(topic: string, event: string, payload: any) => null>
+let dataSpy: DataSpy
 
 beforeEach(() => {
   dataSpy = vi.fn()
   testSetup = testBuilders.standardClient({
-    preparation: (server) => {
-      server.on('connection', (socket) => {
-        socket.on('message', (message) => {
-          const { topic, event, payload, ref } = JSON.parse(message as string)
-          dataSpy(topic, event, payload)
-
-          // Proper response for subscribe
-          if (event == 'phx_join') {
-            socket.send(
-              JSON.stringify({
-                event: 'phx_reply',
-                payload: { status: 'ok', response: { postgres_changes: [] } },
-                ref: ref,
-                topic: topic,
-              })
-            )
-          }
-        })
-      })
-    },
+    preparation: (server) => spyOnMessage(server, dataSpy),
   })
 })
 
@@ -43,9 +24,7 @@ afterEach(() => {
 
 describe('token setting and updates', () => {
   test("sets access token, updates channels' join payload, and pushes token to channels", async () => {
-    const { channel1, channel2, channel3 } = await testHelpers.setupAuthTestChannels(
-      testSetup.socket
-    )
+    const [channel1, channel2, channel3] = await testHelpers.setupAuthTestChannels(testSetup.socket)
 
     dataSpy.mockClear()
 
@@ -102,39 +81,38 @@ describe('token setting and updates', () => {
 
     assert.strictEqual(testSetup.socket.accessTokenValue, new_token)
 
-    testHelpers.assertPushes(new_token, dataSpy, [
-      channels.channel1.subTopic,
-      channels.channel2.subTopic,
-      channels.channel3.subTopic,
-    ])
+    const topics = channels.map((chan) => chan.subTopic)
+    testHelpers.assertPushes(new_token, dataSpy, topics)
   })
 
   test("sets access token using callback, updates channels' join payload, and pushes token to channels", async () => {
     const new_token = utils.generateJWT('1h')
-    const new_socket = new RealtimeClient(testSetup.url, {
-      transport: MockWebSocket,
+    const newSpy = vi.fn()
+    const newClient = testBuilders.standardClient({
       accessToken: () => Promise.resolve(new_token),
-      params: { apikey: '123456789' },
+      preparation: (server) => spyOnMessage(server, newSpy),
     })
 
-    const channels = testHelpers.setupAuthTestChannels(new_socket)
-    const spies = testHelpers.setupAuthTestSpies(channels)
+    const channels = await testHelpers.setupAuthTestChannels(newClient.socket)
 
-    await new_socket.setAuth()
+    await newClient.socket.setAuth()
 
-    assert.strictEqual(new_socket.accessTokenValue, new_token)
-    testHelpers.assertAuthTestResults(new_token, spies, true)
+    assert.strictEqual(newClient.socket.accessTokenValue, new_token)
+
+    const topics = channels.map((chan) => chan.subTopic)
+    testHelpers.assertPushes(new_token, newSpy, topics)
   })
 
-  test("overrides access token, updates channels' join payload, and pushes token to channels", () => {
-    const channels = testHelpers.setupAuthTestChannels(testSetup.socket)
-    const spies = testHelpers.setupAuthTestSpies(channels)
+  test("overrides access token, updates channels' join payload, and pushes token to channels", async () => {
+    const channels = await testHelpers.setupAuthTestChannels(testSetup.socket)
 
     const new_token = 'override'
     testSetup.socket.setAuth(new_token)
 
     assert.strictEqual(testSetup.socket.accessTokenValue, new_token)
-    testHelpers.assertAuthTestResults(new_token, spies, true)
+
+    const topics = channels.map((chan) => chan.subTopic)
+    testHelpers.assertPushes(new_token, dataSpy, topics)
   })
 })
 

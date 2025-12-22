@@ -59,7 +59,7 @@ export const authHelpers = {
       expect(subscribedChan3).toBe(true)
     })
 
-    return { channel1, channel2, channel3 }
+    return [channel1, channel2, channel3]
   },
 
   async setupAuthTestChannel(socket: RealtimeClient) {

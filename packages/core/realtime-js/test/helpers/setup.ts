@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { Mock, vi } from 'vitest'
 import crypto from 'crypto'
 import { Server, WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient, { RealtimeClientOptions } from '../../src/RealtimeClient'
@@ -18,7 +18,8 @@ export interface TestContext {
 export interface TestSetup {
   socket: RealtimeClient
   mockServer: Server
-  url: string
+  realtimeUrl: string
+  wssUrl: string
   projectRef: string
   clock?: any
 }
@@ -30,11 +31,14 @@ export interface EnhancedTestSetup extends TestSetup {
 }
 
 export interface BuilderOptions extends Omit<RealtimeClientOptions, 'params'> {
+  preparation?: (server: Server) => void
   useFakeTimers?: boolean
   apikey?: string
   params?: Record<string, any>
   [key: string]: any
 }
+
+export type DataSpy = Mock<(topic: string, event: string, payload: any) => null>
 
 // Utility Functions
 export const randomProjectRef = () => crypto.randomUUID()
@@ -42,10 +46,13 @@ export const randomProjectRef = () => crypto.randomUUID()
 // Core Setup Functions
 export function setupRealtimeTest(options: BuilderOptions = {}): TestSetup {
   const projectRef = randomProjectRef()
-  const url = `wss://${projectRef}/socket`
-  const mockServer = new Server(url)
+  const wssUrl = `wss://${projectRef}/websocket`
+  const realtimeUrl = `wss://${projectRef}`
+  const mockServer = new Server(wssUrl)
 
-  const socket = new RealtimeClient(url, {
+  options.preparation?.(mockServer)
+
+  const socket = new RealtimeClient(realtimeUrl, {
     transport: MockWebSocket,
     timeout: options.timeout || 1000,
     heartbeatIntervalMs: options.heartbeatIntervalMs || 25000,
@@ -53,7 +60,7 @@ export function setupRealtimeTest(options: BuilderOptions = {}): TestSetup {
     ...options,
   })
 
-  const setup: TestSetup = { socket, mockServer, url, projectRef }
+  const setup: TestSetup = { socket, mockServer, realtimeUrl, wssUrl, projectRef }
 
   if (options.useFakeTimers) {
     setup.clock = vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -128,6 +135,27 @@ export const testSuites = {
 
     return { beforeEach, afterEach, getSetup }
   },
+}
+
+export function spyOnMessage(server: Server, spy: DataSpy) {
+  server.on('connection', (socket) => {
+    socket.on('message', (message) => {
+      const { topic, event, payload, ref } = JSON.parse(message as string)
+      spy(topic, event, payload)
+
+      // Proper response for subscribe
+      if (event == 'phx_join') {
+        socket.send(
+          JSON.stringify({
+            event: 'phx_reply',
+            payload: { status: 'ok', response: { postgres_changes: [] } },
+            ref: ref,
+            topic: topic,
+          })
+        )
+      }
+    })
+  })
 }
 
 // Channel Helper Functions
