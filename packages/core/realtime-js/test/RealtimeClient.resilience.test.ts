@@ -45,21 +45,24 @@ describe('Heartbeat timeout handling', () => {
     testSetup.socket.connect()
 
     // Simulate heartbeat timeout
-    testSetup.socket.pendingHeartbeatRef = 'test-ref'
+    // @ts-ignore - accessing private property for testing
+    testSetup.socket.socketAdapter.socket.pendingHeartbeatRef = 'test-ref'
 
     // Mock connection to prevent actual WebSocket close
     const mockConn = {
       close: () => {},
+      send: () => {},
       readyState: MockWebSocket.OPEN,
     }
-    testSetup.socket.conn = mockConn as any
+    // @ts-ignore - accessing private property for testing
+    testSetup.socket.socketAdapter.socket.conn = mockConn as any
 
     // Trigger heartbeat - should detect timeout
     await testSetup.socket.sendHeartbeat()
 
     // Should have reset manual disconnect flag
     // @ts-ignore - accessing private property for testing
-    assert.equal(testSetup.socket._wasManualDisconnect, false)
+    assert.equal(testSetup.socket.socketAdapter.socket.closeWasClean, false)
   })
 })
 
