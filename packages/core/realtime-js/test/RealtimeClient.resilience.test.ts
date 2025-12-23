@@ -2,6 +2,7 @@ import assert from 'assert'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { WebSocket as MockWebSocket } from 'mock-socket'
 import { setupRealtimeTest, cleanupRealtimeTest, TestSetup } from './helpers/setup'
+import { CHANNEL_EVENTS, CHANNEL_STATES } from '../src/lib/constants'
 
 let testSetup: TestSetup
 
@@ -24,10 +25,11 @@ describe('Network failure scenarios', () => {
       wasClean: false,
     })
 
-    testSetup.socket.conn?.onclose?.(closeEvent)
+    // @ts-ignore - accessing private property for testing
+    testSetup.socket.socketAdapter.socket.conn?.onclose(closeEvent);
 
     // Verify reconnection is scheduled
-    assert.ok(testSetup.socket.reconnectTimer.timer)
+    assert.ok(testSetup.socket.socketAdapter.getSocket().reconnectTimer.timer)
   })
 
   test('should not schedule reconnection on manual disconnect', () => {
@@ -35,7 +37,7 @@ describe('Network failure scenarios', () => {
     testSetup.socket.disconnect()
 
     // Verify no reconnection is scheduled
-    assert.equal(testSetup.socket.reconnectTimer.timer, undefined)
+    assert.equal(testSetup.socket.socketAdapter.getSocket().reconnectTimer.timer, undefined)
   })
 })
 
@@ -44,21 +46,24 @@ describe('Heartbeat timeout handling', () => {
     testSetup.socket.connect()
 
     // Simulate heartbeat timeout
-    testSetup.socket.pendingHeartbeatRef = 'test-ref'
+    // @ts-ignore - accessing private property for testing
+    testSetup.socket.socketAdapter.socket.pendingHeartbeatRef = 'test-ref'
 
     // Mock connection to prevent actual WebSocket close
     const mockConn = {
       close: () => {},
+      send: () => {},
       readyState: MockWebSocket.OPEN,
     }
-    testSetup.socket.conn = mockConn as any
+    // @ts-ignore - accessing private property for testing
+    testSetup.socket.socketAdapter.socket.conn = mockConn as any
 
     // Trigger heartbeat - should detect timeout
     await testSetup.socket.sendHeartbeat()
 
     // Should have reset manual disconnect flag
     // @ts-ignore - accessing private property for testing
-    assert.equal(testSetup.socket._wasManualDisconnect, false)
+    assert.equal(testSetup.socket.socketAdapter.socket.closeWasClean, false)
   })
 })
 
@@ -79,7 +84,7 @@ describe('Reconnection timer logic', () => {
     }
 
     // Trigger reconnection
-    testSetup.socket.reconnectTimer.callback()
+    testSetup.socket.reconnectTimer!.callback()
 
     // Should not have called connect immediately
     assert.equal(connectCalls, 0)
@@ -100,30 +105,32 @@ describe('socket close event', () => {
   beforeEach(() => testSetup.socket.connect())
 
   test('schedules reconnectTimer timeout', () => {
-    const spy = vi.spyOn(testSetup.socket.reconnectTimer, 'scheduleTimeout')
+    const spy = vi.spyOn(testSetup.socket.socketAdapter.getSocket().reconnectTimer, 'scheduleTimeout')
 
     const closeEvent = new CloseEvent('close', {
       code: 1000,
       reason: '',
       wasClean: true,
     })
-    testSetup.socket.conn?.onclose?.(closeEvent)
-
+    // @ts-ignore
+    testSetup.socket.socketAdapter.getSocket().conn?.onclose?.(closeEvent)
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
   test('triggers channel error', () => {
     const channel = testSetup.socket.channel('topic')
-    const spy = vi.spyOn(channel, '_trigger')
+    channel.state = CHANNEL_STATES.joined;
+    const spy = vi.spyOn(channel.channelAdapter.getChannel(), 'trigger')
 
     const closeEvent = new CloseEvent('close', {
       code: 1000,
       reason: '',
       wasClean: true,
     })
-    testSetup.socket.conn?.onclose?.(closeEvent)
+    // @ts-ignore
+    testSetup.socket.socketAdapter.getSocket().conn?.onclose?.(closeEvent)
 
-    expect(spy).toHaveBeenCalledWith('phx_error')
+    expect(spy).toHaveBeenCalledWith(CHANNEL_EVENTS.error)
   })
 })
 
@@ -134,10 +141,12 @@ describe('_onConnError', () => {
 
   test('triggers channel error', () => {
     const channel = testSetup.socket.channel('topic')
-    const spy = vi.spyOn(channel, '_trigger')
+    channel.state = CHANNEL_STATES.joined;
+    const spy = vi.spyOn(channel.channelAdapter.getChannel(), 'trigger')
 
-    testSetup.socket.conn?.onerror?.(new Event('error'))
+    // @ts-ignore
+    testSetup.socket.socketAdapter.getSocket().conn?.onerror?.(new Event('error'))
 
-    expect(spy).toHaveBeenCalledWith('phx_error')
+    expect(spy).toHaveBeenCalledWith(CHANNEL_EVENTS.error)
   })
 })
