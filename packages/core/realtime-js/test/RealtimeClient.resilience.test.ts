@@ -2,6 +2,7 @@ import assert from 'assert'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { WebSocket as MockWebSocket } from 'mock-socket'
 import { setupRealtimeTest, cleanupRealtimeTest, TestSetup } from './helpers/setup'
+import { CHANNEL_EVENTS, CHANNEL_STATES } from '../src/lib/constants'
 
 let testSetup: TestSetup
 
@@ -104,30 +105,32 @@ describe('socket close event', () => {
   beforeEach(() => testSetup.socket.connect())
 
   test('schedules reconnectTimer timeout', () => {
-    const spy = vi.spyOn(testSetup.socket.reconnectTimer, 'scheduleTimeout')
+    const spy = vi.spyOn(testSetup.socket.socketAdapter.getSocket().reconnectTimer, 'scheduleTimeout')
 
     const closeEvent = new CloseEvent('close', {
       code: 1000,
       reason: '',
       wasClean: true,
     })
-    testSetup.socket.conn?.onclose?.(closeEvent)
-
+    // @ts-ignore
+    testSetup.socket.socketAdapter.getSocket().conn?.onclose?.(closeEvent)
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
   test('triggers channel error', () => {
     const channel = testSetup.socket.channel('topic')
-    const spy = vi.spyOn(channel, '_trigger')
+    channel.state = CHANNEL_STATES.joined;
+    const spy = vi.spyOn(channel.channelAdapter.getChannel(), 'trigger')
 
     const closeEvent = new CloseEvent('close', {
       code: 1000,
       reason: '',
       wasClean: true,
     })
-    testSetup.socket.conn?.onclose?.(closeEvent)
+    // @ts-ignore
+    testSetup.socket.socketAdapter.getSocket().conn?.onclose?.(closeEvent)
 
-    expect(spy).toHaveBeenCalledWith('phx_error')
+    expect(spy).toHaveBeenCalledWith(CHANNEL_EVENTS.error)
   })
 })
 
@@ -138,10 +141,12 @@ describe('_onConnError', () => {
 
   test('triggers channel error', () => {
     const channel = testSetup.socket.channel('topic')
-    const spy = vi.spyOn(channel, '_trigger')
+    channel.state = CHANNEL_STATES.joined;
+    const spy = vi.spyOn(channel.channelAdapter.getChannel(), 'trigger')
 
-    testSetup.socket.conn?.onerror?.(new Event('error'))
+    // @ts-ignore
+    testSetup.socket.socketAdapter.getSocket().conn?.onerror?.(new Event('error'))
 
-    expect(spy).toHaveBeenCalledWith('phx_error')
+    expect(spy).toHaveBeenCalledWith(CHANNEL_EVENTS.error)
   })
 })
