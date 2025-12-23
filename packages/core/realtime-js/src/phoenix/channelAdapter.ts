@@ -1,8 +1,13 @@
-import { Channel, ChannelOnMessage } from 'phoenix'
+import { Channel } from 'phoenix'
 import { CHANNEL_STATES } from '../lib/constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import SocketAdapter from './socketAdapter'
-import type { ChannelBindingCallback, ChanelOnErrorCallback, Params } from './types'
+import type {
+  ChannelBindingCallback,
+  ChannelOnMessage,
+  ChannelOnErrorCallback,
+  Params,
+} from './types'
 
 export default class ChannelAdapter {
   private channel: Channel
@@ -58,7 +63,7 @@ export default class ChannelAdapter {
     this.channel.onClose(callback)
   }
 
-  onError(callback: ChanelOnErrorCallback) {
+  onError(callback: ChannelOnErrorCallback) {
     return this.channel.onError(callback)
   }
 
