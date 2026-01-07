@@ -1,90 +1,99 @@
-import assert from 'assert'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { WebSocket as MockWebSocket } from 'mock-socket'
-import { setupRealtimeTest, cleanupRealtimeTest, TestSetup } from './helpers/setup'
-import { CHANNEL_EVENTS, CHANNEL_STATES } from '../src/lib/constants'
+import assert from "assert";
+import { type Client } from "mock-socket"
+import { beforeEach, afterEach, vi, describe, test, expect } from "vitest"
+import { type EnhancedTestSetup, testBuilders } from "./helpers/setup"
+import { CHANNEL_EVENTS, CHANNEL_STATES } from "../src/lib/constants";
 
-let testSetup: TestSetup
+let serverSocket: Client
+let testClient: EnhancedTestSetup
+let connected: boolean
 
 beforeEach(() => {
-  testSetup = setupRealtimeTest()
+  connected = false
+  testClient = testBuilders.standardClient({
+    preparation: (server) => {
+      server.on('connection', (socket) => {
+        serverSocket = socket;
+        connected = true;
+      })
+      server.on('close', () => {
+        connected = false;
+      })
+    },
+  })
 })
 
 afterEach(() => {
-  cleanupRealtimeTest(testSetup)
+  testClient.cleanup()
 })
 
 describe('Network failure scenarios', () => {
   test('should handle network failure and schedule reconnection', async () => {
-    testSetup.socket.connect()
+    testClient.socket.connect()
 
-    // Simulate network failure by closing with abnormal code
-    const closeEvent = new CloseEvent('close', {
-      code: 1006, // Abnormal closure
-      reason: 'Network error',
-      wasClean: false,
-    })
+    await vi.waitFor(() => expect(connected).toBe(true))
 
-    // @ts-ignore - accessing private property for testing
-    testSetup.socket.socketAdapter.socket.conn?.onclose(closeEvent);
+    serverSocket.close({ code: 1006, reason: 'Network error', wasClean: false })
+    await vi.waitFor(() => expect(connected).toBe(false))
 
     // Verify reconnection is scheduled
-    assert.ok(testSetup.socket.socketAdapter.getSocket().reconnectTimer.timer)
+    assert.ok(testClient.socket.socketAdapter.getSocket().reconnectTimer.timer)
   })
 
-  test('should not schedule reconnection on manual disconnect', () => {
-    testSetup.socket.connect()
-    testSetup.socket.disconnect()
+  test('should not schedule reconnection on manual disconnect', async () => {
+    testClient.socket.connect()
+    await vi.waitFor(() => expect(connected).toBe(true))
+    testClient.socket.disconnect()
 
     // Verify no reconnection is scheduled
-    assert.equal(testSetup.socket.socketAdapter.getSocket().reconnectTimer.timer, undefined)
+    assert.equal(testClient.socket.socketAdapter.getSocket().reconnectTimer.timer, undefined)
   })
 })
 
 describe('Heartbeat timeout handling', () => {
   test('should handle heartbeat timeout with reconnection fallback', async () => {
-    testSetup.socket.connect()
+    testClient.socket.connect()
 
     // Simulate heartbeat timeout
     // @ts-ignore - accessing private property for testing
-    testSetup.socket.socketAdapter.socket.pendingHeartbeatRef = 'test-ref'
+    testClient.socket.socketAdapter.socket.pendingHeartbeatRef = 'test-ref'
 
     // Mock connection to prevent actual WebSocket close
     const mockConn = {
       close: () => {},
       send: () => {},
-      readyState: MockWebSocket.OPEN,
+      readyState: WebSocket.OPEN,
     }
     // @ts-ignore - accessing private property for testing
-    testSetup.socket.socketAdapter.socket.conn = mockConn as any
+    testClient.socket.socketAdapter.socket.conn = mockConn as any
 
     // Trigger heartbeat - should detect timeout
-    await testSetup.socket.sendHeartbeat()
+    await testClient.socket.sendHeartbeat()
 
     // Should have reset manual disconnect flag
     // @ts-ignore - accessing private property for testing
-    assert.equal(testSetup.socket.socketAdapter.socket.closeWasClean, false)
+    assert.equal(testClient.socket.socketAdapter.socket.closeWasClean, false)
   })
 })
 
 describe('Reconnection timer logic', () => {
   test('should use delay in reconnection callback', async () => {
-    testSetup.socket.connect()
+    testClient.socket.connect()
 
     // Mock isConnected to return false initially
-    const originalIsConnected = testSetup.socket.isConnected
-    testSetup.socket.isConnected = () => false
+    const originalIsConnected = testClient.socket.isConnected
+    testClient.socket.isConnected = () => false
 
     // Track connect calls
     let connectCalls = 0
-    const originalConnect = testSetup.socket.connect
-    testSetup.socket.connect = () => {
+    const originalConnect = testClient.socket.connect
+    testClient.socket.connect = () => {
       connectCalls++
-      return originalConnect.call(testSetup.socket)
+      return originalConnect.call(testClient.socket)
     }
 
     // Trigger reconnection
-    testSetup.socket.reconnectTimer!.callback()
+    testClient.socket.reconnectTimer!.callback()
 
     // Should not have called connect immediately
     assert.equal(connectCalls, 0)
@@ -96,39 +105,33 @@ describe('Reconnection timer logic', () => {
     assert.equal(connectCalls, 1)
 
     // Restore original methods
-    testSetup.socket.isConnected = originalIsConnected
-    testSetup.socket.connect = originalConnect
+    testClient.socket.isConnected = originalIsConnected
+    testClient.socket.connect = originalConnect
   })
 })
 
 describe('socket close event', () => {
-  beforeEach(() => testSetup.socket.connect())
+  beforeEach(async () => {
+    testClient.socket.connect()
+    await vi.waitFor(() => expect(connected).toBe(true))
+  })
 
-  test('schedules reconnectTimer timeout', () => {
-    const spy = vi.spyOn(testSetup.socket.socketAdapter.getSocket().reconnectTimer, 'scheduleTimeout')
+  test('schedules reconnectTimer timeout', async () => {
+    const spy = vi.spyOn(testClient.socket.socketAdapter.getSocket().reconnectTimer, 'scheduleTimeout')
 
-    const closeEvent = new CloseEvent('close', {
-      code: 1000,
-      reason: '',
-      wasClean: true,
-    })
-    // @ts-ignore
-    testSetup.socket.socketAdapter.getSocket().conn?.onclose?.(closeEvent)
+    serverSocket.close({ code: 1000, reason: '', wasClean: true })
+    await vi.waitFor(() => expect(connected).toBe(false))
+
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
-  test('triggers channel error', () => {
-    const channel = testSetup.socket.channel('topic')
+  test('triggers channel error', async () => {
+    const channel = testClient.socket.channel('topic')
     channel.state = CHANNEL_STATES.joined;
     const spy = vi.spyOn(channel.channelAdapter.getChannel(), 'trigger')
 
-    const closeEvent = new CloseEvent('close', {
-      code: 1000,
-      reason: '',
-      wasClean: true,
-    })
-    // @ts-ignore
-    testSetup.socket.socketAdapter.getSocket().conn?.onclose?.(closeEvent)
+    serverSocket.close({ code: 1000, reason: '', wasClean: true })
+    await vi.waitFor(() => expect(connected).toBe(false))
 
     expect(spy).toHaveBeenCalledWith(CHANNEL_EVENTS.error)
   })
@@ -136,16 +139,14 @@ describe('socket close event', () => {
 
 describe('_onConnError', () => {
   beforeEach(() => {
-    testSetup.socket.connect()
+    testClient.socket.connect()
   })
 
   test('triggers channel error', () => {
-    const channel = testSetup.socket.channel('topic')
+    const channel = testClient.socket.channel('topic')
     channel.state = CHANNEL_STATES.joined;
     const spy = vi.spyOn(channel.channelAdapter.getChannel(), 'trigger')
-
-    // @ts-ignore
-    testSetup.socket.socketAdapter.getSocket().conn?.onerror?.(new Event('error'))
+    testClient.mockServer.simulate('error')
 
     expect(spy).toHaveBeenCalledWith(CHANNEL_EVENTS.error)
   })
