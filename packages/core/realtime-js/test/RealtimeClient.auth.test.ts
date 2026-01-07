@@ -33,7 +33,7 @@ describe('token setting and updates', () => {
 
     assert.strictEqual(testSetup.socket.accessTokenValue, token)
 
-    testHelpers.assertPushes(token, dataSpy, ['test-topic1', 'test-topic2'])
+    await testHelpers.assertPushes(token, dataSpy, ['test-topic1', 'test-topic3'])
 
     // Check joinPush payload
     assert.deepEqual(channel1.joinPush.payload(), {
@@ -81,22 +81,36 @@ describe('token setting and updates', () => {
     await testHelpers.assertPushes(new_token, dataSpy, ['test-topic1', 'test-topic3'])
   })
 
-  test("sets access token using callback, updates channels' join payload, and pushes token to channels", async () => {
-    const new_token = utils.generateJWT('1h')
-    const newSpy = vi.fn()
-    const newClient = testBuilders.standardClient({
+  test("sets access token using callback, updates channels' join payload", async () => {
+    const new_token = utils.generateJWT('3h')
+    dataSpy.mockClear()
+    testSetup.cleanup()
+
+    testSetup = testBuilders.standardClient({
       accessToken: () => Promise.resolve(new_token),
-      preparation: (server) => spyOnMessage(server, newSpy),
+      preparation: (server) => spyOnMessage(server, dataSpy),
     })
 
-    const channels = await testHelpers.setupAuthTestChannels(newClient.socket)
+    const [channel1, channel2, channel3] = await testHelpers.setupAuthTestChannels(testSetup.socket)
 
-    await newClient.socket.setAuth()
+    dataSpy.mockClear()
 
-    assert.strictEqual(newClient.socket.accessTokenValue, new_token)
+    vi.waitFor(() => assert.strictEqual(testSetup.socket.accessTokenValue, new_token))
 
-    const topics = channels.map((chan) => chan.subTopic)
-    testHelpers.assertPushes(new_token, newSpy, topics)
+    assert.deepEqual(channel1.joinPush.payload(), {
+      access_token: new_token,
+      version: DEFAULT_VERSION,
+    })
+
+    assert.deepEqual(channel2.joinPush.payload(), {
+      access_token: new_token,
+      version: DEFAULT_VERSION,
+    })
+
+    assert.deepEqual(channel3.joinPush.payload(), {
+      access_token: new_token,
+      version: DEFAULT_VERSION,
+    })
   })
 
   test("overrides access token, updates channels' join payload, and pushes token to channels", async () => {
