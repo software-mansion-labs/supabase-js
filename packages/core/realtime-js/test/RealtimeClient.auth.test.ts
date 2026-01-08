@@ -1,8 +1,8 @@
 import assert from 'assert'
-import { afterEach, beforeEach, describe, expect, Mock, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
-import { CHANNEL_STATES, DEFAULT_VERSION } from '../src/lib/constants'
+import { DEFAULT_VERSION } from '../src/lib/constants'
 import { testBuilders, EnhancedTestSetup, DataSpy, spyOnMessage } from './helpers/setup'
 import { utils, authHelpers as testHelpers } from './helpers/auth'
 
@@ -196,27 +196,39 @@ describe('auth during connection states', () => {
   })
 
   test('uses new token after reconnect', async () => {
-    const tokens = ['initial-token', 'refreshed-token']
-
+    const initialToken = utils.generateJWT('1h')
+    const refreshedToken = utils.generateJWT('2h')
+    const tokens = [initialToken, refreshedToken]
     let callCount = 0
+
     const accessToken = vi.fn(() => Promise.resolve(tokens[callCount++]))
 
-    const socket = new RealtimeClient(testSetup.url, {
-      transport: MockWebSocket,
+    testSetup.cleanup()
+    testSetup = testBuilders.standardClient({
       accessToken,
-      params: { apikey: '123456789' },
+      preparation: (server) => {
+        server.on('connection', (socket) => {
+          socket.close()
+        })
+      },
     })
-    socket.connect()
 
-    // Wait for the async setAuth call to complete
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(accessToken).toHaveBeenCalledTimes(1)
-    expect(socket.accessTokenValue).toBe(tokens[0])
+    testSetup.connect()
 
-    // Call the callback and wait for async operations to complete
-    await socket.reconnectTimer?.callback()
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(socket.accessTokenValue).toBe(tokens[1])
-    expect(accessToken).toHaveBeenCalledTimes(2)
+    // Wait for initial token to be set
+    await vi.waitFor(() => {
+      expect(accessToken).toHaveBeenCalledTimes(1)
+      expect(testSetup.socket.accessTokenValue).toBe(initialToken)
+    })
+
+    testSetup.socket.reconnectTimer!.callback()
+
+    accessToken.mockClear()
+
+    // Wait for the refreshed token to be set
+    await vi.waitFor(() => {
+      expect(testSetup.socket.accessTokenValue).toBe(refreshedToken)
+      expect(accessToken).toHaveBeenCalledTimes(1)
+    })
   })
 })
