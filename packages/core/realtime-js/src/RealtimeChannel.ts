@@ -10,7 +10,7 @@ import type {
 import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
-import { ChannelBindingCallback, ChanelOnErrorCallback } from './phoenix/types'
+import { ChannelBindingCallback, ChannelOnErrorCallback } from './phoenix/types'
 import { Timer } from 'phoenix'
 
 type ReplayOption = {
@@ -282,8 +282,8 @@ export default class RealtimeChannel {
         accessTokenPayload.access_token = this.socket.accessTokenValue
       }
 
-      this._onError((reason: Error) => {
-        callback?.(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, reason)
+      this._onError((reason: unknown) => {
+        callback?.(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR, reason as Error)
       })
 
       this._onClose(() => callback?.(REALTIME_SUBSCRIBE_STATES.CLOSED))
@@ -750,7 +750,7 @@ export default class RealtimeChannel {
    *
    * @internal
    */
-  private _onError(callback: ChanelOnErrorCallback) {
+  private _onError(callback: ChannelOnErrorCallback) {
     this.channelAdapter.onError(callback)
   }
 

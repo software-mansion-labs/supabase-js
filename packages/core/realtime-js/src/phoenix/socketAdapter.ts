@@ -10,15 +10,14 @@ import type {
 import { CONNECTION_STATE, ConnectionState } from '../lib/constants'
 import type {
   HeartbeatTimer,
-  RealtimeClientOptions,
   WebSocketLikeConstructor,
 } from '../RealtimeClient'
 
 export default class SocketAdapter {
   private socket: Socket
 
-  constructor(endPoint: string, options: RealtimeClientOptions) {
-    this.socket = new Socket(endPoint, options as SocketOptions)
+  constructor(endPoint: string, options: SocketOptions) {
+    this.socket = new Socket(endPoint, options)
   }
 
   get timeout() {
@@ -73,8 +72,17 @@ export default class SocketAdapter {
     this.socket.connect()
   }
 
-  disconnect(code?: number, reason?: string) {
-    this.socket.disconnect(() => {}, code, reason)
+  disconnect(code?: number, reason?: string, timeout: number = 10000): Promise<'ok' | 'timeout'> {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve('timeout'), timeout)
+      this.socket.disconnect(
+        () => {
+          resolve('ok')
+        },
+        code,
+        reason
+      )
+    })
   }
 
   push(data: Message<Record<string, unknown>>) {
@@ -124,6 +132,10 @@ export default class SocketAdapter {
 
   endPointURL() {
     return this.socket.endPointURL()
+  }
+
+  sendHeartbeat() {
+    return this.socket.sendHeartbeat()
   }
 
   /**
