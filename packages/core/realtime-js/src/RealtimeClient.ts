@@ -420,7 +420,8 @@ export default class RealtimeClient {
    * Sends a heartbeat message if the socket is connected.
    */
   async sendHeartbeat() {
-    this.socketAdapter.sendHeartbeat();
+    this.socketAdapter.sendHeartbeat()
+    this._setAuthSafely('heartbeat')
   }
 
   /**
@@ -598,7 +599,7 @@ export default class RealtimeClient {
     }
     this.workerRef.onmessage = (event) => {
       if (event.data.event === 'keepAlive') {
-        this.socketAdapter.sendHeartbeat()
+        this.sendHeartbeat()
       }
     }
     this.workerRef.postMessage({
@@ -699,7 +700,7 @@ export default class RealtimeClient {
       encode,
       decode,
       reconnectAfterMs,
-      autoSendHeartbeat: !options?.worker
+      autoSendHeartbeat: !options?.worker,
     } as any
   }
 }
