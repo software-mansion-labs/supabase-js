@@ -589,6 +589,13 @@ export default class RealtimeClient {
     })
   }
 
+  private _setHeartbeatCallback(heartbeatCallback?: HeartbeatCallback) {
+    this.heartbeatCallback = (status: HeartbeatStatus) => {
+      status == 'sent' && this._setAuthSafely()
+      heartbeatCallback && heartbeatCallback(status)
+    }
+  }
+
   /** @internal */
   private _startWorkerHeartbeat() {
     if (this.workerUrl) {
@@ -652,7 +659,6 @@ export default class RealtimeClient {
     this.worker = options?.worker ?? false
 
     this.accessToken = options?.accessToken ?? null
-    // const heartbeatCallback = this._setHeartbeatCallback(options?.heartbeatCallback)
 
     if (options?.logLevel || options?.log_level) {
       this.logLevel = options.logLevel || options.log_level
@@ -708,12 +714,5 @@ export default class RealtimeClient {
       reconnectAfterMs,
       autoSendHeartbeat: !options?.worker,
     } as any
-  }
-
-  private _setHeartbeatCallback(heartbeatCallback?: (status: HeartbeatStatus) => void) {
-    this.heartbeatCallback = (status: HeartbeatStatus) => {
-      status == 'sent' && this._setAuthSafely()
-      heartbeatCallback && heartbeatCallback(status)
-    }
   }
 }
