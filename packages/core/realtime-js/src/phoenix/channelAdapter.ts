@@ -1,4 +1,4 @@
-import { Channel, ChannelFilterBindings } from 'phoenix'
+import { Channel } from 'phoenix'
 import { CHANNEL_STATES } from '../lib/constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import SocketAdapter from './socketAdapter'
@@ -6,6 +6,7 @@ import type {
   ChannelBindingCallback,
   ChannelOnMessage,
   ChannelOnErrorCallback,
+  ChannelFilterBindings,
   Params,
   ChannelState,
   Push,
@@ -111,7 +112,6 @@ export default class ChannelAdapter {
   }
 
   updateFilterBindings(filterBindings: ChannelFilterBindings) {
-    // @ts-ignore - it does not exist yet in phoenix
     this.channel.filterBindings = filterBindings
   }
 

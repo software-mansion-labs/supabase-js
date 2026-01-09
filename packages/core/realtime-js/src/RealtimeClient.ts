@@ -422,7 +422,6 @@ export default class RealtimeClient {
    */
   async sendHeartbeat() {
     this.socketAdapter.sendHeartbeat()
-    this.socketAdapter.sendHeartbeat()
   }
 
   /**

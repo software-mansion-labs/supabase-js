@@ -1,4 +1,4 @@
-import { Socket, SocketStateChangeCallbacks } from 'phoenix'
+import { Socket } from 'phoenix'
 import type {
   Message,
   SocketOnClose,
@@ -6,6 +6,7 @@ import type {
   SocketOnOpen,
   SocketOnError,
   SocketOptions,
+  SocketStateChangeCallbacks,
   Vsn,
   Encode,
   Decode,
