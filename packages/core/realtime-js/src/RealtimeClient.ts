@@ -119,7 +119,7 @@ export default class RealtimeClient {
     return this.socketAdapter.transport
   }
 
-  get heartbeatCallback(): (status: HeartbeatStatus) => void {
+  get heartbeatCallback(): HeartbeatCallback {
     return this.socketAdapter.heartbeatCallback
   }
 
