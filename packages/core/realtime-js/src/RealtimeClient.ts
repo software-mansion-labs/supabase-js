@@ -123,10 +123,6 @@ export default class RealtimeClient {
     return this.socketAdapter.heartbeatCallback
   }
 
-  set heartbeatCallback(callback: HeartbeatCallback) {
-    this.socketAdapter.heartbeatCallback = callback
-  }
-
   get heartbeatIntervalMs(): number {
     return this.socketAdapter.heartbeatIntervalMs
   }
@@ -220,7 +216,6 @@ export default class RealtimeClient {
 
     this.fetch = this._resolveFetch(options?.fetch)
     this._setupReconnectionTimer()
-    this._setHeartbeatCallback()
   }
 
   /**
@@ -433,8 +428,8 @@ export default class RealtimeClient {
    * Sets a callback that receives lifecycle events for internal heartbeat messages.
    * Useful for instrumenting connection health (e.g. sent/ok/timeout/disconnected).
    */
-  onHeartbeat(callback: (status: HeartbeatStatus) => void): void {
-    this.heartbeatCallback = callback
+  onHeartbeat(callback: HeartbeatCallback): void {
+    this.socketAdapter.heartbeatCallback = this._wrapHeartbeatCallback(callback)
   }
 
   /**
@@ -589,10 +584,10 @@ export default class RealtimeClient {
     })
   }
 
-  private _setHeartbeatCallback(heartbeatCallback?: HeartbeatCallback) {
-    this.heartbeatCallback = (status: HeartbeatStatus) => {
-      status == 'sent' && this._setAuthSafely()
-      heartbeatCallback && heartbeatCallback(status)
+  private _wrapHeartbeatCallback(heartbeatCallback?: HeartbeatCallback) {
+    return (status: HeartbeatStatus) => {
+      if (status == 'sent') this._setAuthSafely()
+      if (heartbeatCallback) heartbeatCallback(status)
     }
   }
 
@@ -660,6 +655,8 @@ export default class RealtimeClient {
 
     this.accessToken = options?.accessToken ?? null
 
+    const heartbeatCallback = this._wrapHeartbeatCallback(options?.heartbeatCallback)
+
     if (options?.logLevel || options?.log_level) {
       this.logLevel = options.logLevel || options.log_level
       params = { ...params, log_level: this.logLevel as string }
@@ -707,6 +704,7 @@ export default class RealtimeClient {
       timeout,
       transport,
       heartbeatIntervalMs,
+      heartbeatCallback,
       vsn,
       params,
       encode,
