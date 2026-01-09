@@ -2,7 +2,7 @@ import { vi, expect, Mock } from 'vitest'
 import jwt from 'jsonwebtoken'
 import RealtimeClient from '../../src/RealtimeClient'
 import { DEFAULT_VERSION } from '../../src/lib/constants'
-import { testBuilders, EnhancedTestSetup, BuilderOptions } from './setup'
+import { BuilderOptions, setupRealtimeTest, TestSetup } from './setup'
 
 /**
  * Generates a JWT token for testing
@@ -13,25 +13,21 @@ export function generateJWT(exp: string = '1h'): string {
     expiresIn: exp,
   })
 }
+/**
+ * Creates a RealtimeClient with authentication pre-configured
+ */
+export function setupAuthTest(token?: string, options: BuilderOptions = {}): TestSetup {
+  const authToken = token || generateJWT('1h')
 
-// Auth-specific Test Builders
-export const authBuilders = {
-  /**
-   * Creates a RealtimeClient with authentication pre-configured
-   */
-  authClient(token?: string, options: BuilderOptions = {}): EnhancedTestSetup {
-    const authToken = token || generateJWT('1h')
+  const setup = setupRealtimeTest({
+    ...options,
+    accessToken: () => Promise.resolve(authToken),
+  })
 
-    const setup = testBuilders.standardClient({
-      ...options,
-      accessToken: () => Promise.resolve(authToken),
-    })
+  // Set the token immediately for synchronous access
+  setup.client.accessTokenValue = authToken
 
-    // Set the token immediately for synchronous access
-    setup.socket.accessTokenValue = authToken
-
-    return setup
-  },
+  return setup
 }
 
 // Auth-specific Test Helpers
@@ -59,7 +55,10 @@ export const authHelpers = {
       expect(subscribedChan3).toBe(true)
     })
 
-    return [channel1, channel2, channel3]
+    return {
+      channels: [channel1, channel2, channel3],
+      topics: ['test-topic1', 'test-topic2', 'test-topic3'],
+    }
   },
 
   async setupAuthTestChannel(socket: RealtimeClient) {
@@ -95,4 +94,3 @@ export const utils = {
 
 // Legacy exports for backward compatibility
 export const testHelpers = authHelpers
-export { authBuilders as testBuilders }

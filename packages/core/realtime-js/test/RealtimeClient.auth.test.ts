@@ -3,37 +3,27 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
 import { DEFAULT_VERSION } from '../src/lib/constants'
-import { testBuilders, EnhancedTestSetup, DataSpy, spyOnMessage } from './helpers/setup'
-import { utils, authHelpers as testHelpers } from './helpers/auth'
-
-let testSetup: EnhancedTestSetup
-let dataSpy: DataSpy
-
-beforeEach(() => {
-  dataSpy = vi.fn()
-  testSetup = testBuilders.standardClient({
-    preparation: (server) => spyOnMessage(server, dataSpy),
-  })
-})
-
-afterEach(() => {
-  dataSpy.mockClear()
-  testSetup.cleanup()
-  testSetup.socket.removeAllChannels()
-})
+import { DataSpy, setupRealtimeTest } from './helpers/setup'
+import { utils, authHelpers as testHelpers, setupAuthTest } from './helpers/auth'
 
 describe('token setting and updates', () => {
   test("sets access token, updates channels' join payload, and pushes token to channels", async () => {
-    const [channel1, channel2, channel3] = await testHelpers.setupAuthTestChannels(testSetup.socket)
+    const testSetup = setupRealtimeTest()
+    const {
+      channels: [channel1, channel2, channel3],
+    } = await testHelpers.setupAuthTestChannels(testSetup.client)
 
-    dataSpy.mockClear()
+    testSetup.emitters.message.mockClear()
 
     const token = utils.generateJWT('1h')
-    await testSetup.socket.setAuth(token)
+    await testSetup.client.setAuth(token)
 
-    assert.strictEqual(testSetup.socket.accessTokenValue, token)
+    assert.strictEqual(testSetup.client.accessTokenValue, token)
 
-    await testHelpers.assertPushes(token, dataSpy, ['test-topic1', 'test-topic3'])
+    await testHelpers.assertPushes(token, testSetup.emitters.message, [
+      'test-topic1',
+      'test-topic3',
+    ])
 
     // Check joinPush payload
     assert.deepEqual(channel1.joinPush.payload(), {
@@ -50,52 +40,61 @@ describe('token setting and updates', () => {
       access_token: token,
       version: DEFAULT_VERSION,
     })
+
+    testSetup.cleanup()
   })
 
   test("does not send message if token hasn't changed", async () => {
-    const channel = await testHelpers.setupAuthTestChannel(testSetup.socket)
+    const testSetup = setupRealtimeTest()
+    const channel = await testHelpers.setupAuthTestChannel(testSetup.client)
 
-    dataSpy.mockClear()
+    testSetup.emitters.message.mockClear()
 
     const token = utils.generateJWT('4h')
     assert.notEqual(token, channel.socket.accessTokenValue)
 
-    await testSetup.socket.setAuth(token)
-    await testSetup.socket.setAuth(token)
+    await testSetup.client.setAuth(token)
+    await testSetup.client.setAuth(token)
 
-    await testHelpers.assertPushes(token, dataSpy, ['test-topic'])
+    await testHelpers.assertPushes(token, testSetup.emitters.message, ['test-topic'])
 
-    assert.strictEqual(testSetup.socket.accessTokenValue, token)
+    assert.strictEqual(testSetup.client.accessTokenValue, token)
+    testSetup.cleanup()
   })
 
   test("sets access token, updates channels' join payload, and pushes token to channels if is not a jwt", async () => {
-    await testHelpers.setupAuthTestChannels(testSetup.socket)
+    const testSetup = setupRealtimeTest()
+    await testHelpers.setupAuthTestChannels(testSetup.client)
 
-    dataSpy.mockClear()
+    testSetup.emitters.message.mockClear()
 
     const new_token = 'sb-key'
-    await testSetup.socket.setAuth(new_token)
+    await testSetup.client.setAuth(new_token)
 
-    assert.strictEqual(testSetup.socket.accessTokenValue, new_token)
+    assert.strictEqual(testSetup.client.accessTokenValue, new_token)
 
-    await testHelpers.assertPushes(new_token, dataSpy, ['test-topic1', 'test-topic3'])
+    await testHelpers.assertPushes(new_token, testSetup.emitters.message, [
+      'test-topic1',
+      'test-topic3',
+    ])
+
+    testSetup.cleanup()
   })
 
   test("sets access token using callback, updates channels' join payload", async () => {
     const new_token = utils.generateJWT('3h')
-    dataSpy.mockClear()
-    testSetup.cleanup()
 
-    testSetup = testBuilders.standardClient({
+    const testSetup = setupRealtimeTest({
       accessToken: () => Promise.resolve(new_token),
-      preparation: (server) => spyOnMessage(server, dataSpy),
     })
 
-    const [channel1, channel2, channel3] = await testHelpers.setupAuthTestChannels(testSetup.socket)
+    const {
+      channels: [channel1, channel2, channel3],
+    } = await testHelpers.setupAuthTestChannels(testSetup.client)
 
-    dataSpy.mockClear()
+    testSetup.emitters.message.mockClear()
 
-    vi.waitFor(() => assert.strictEqual(testSetup.socket.accessTokenValue, new_token))
+    vi.waitFor(() => assert.strictEqual(testSetup.client.accessTokenValue, new_token))
 
     assert.deepEqual(channel1.joinPush.payload(), {
       access_token: new_token,
@@ -111,19 +110,28 @@ describe('token setting and updates', () => {
       access_token: new_token,
       version: DEFAULT_VERSION,
     })
+
+    testSetup.cleanup()
   })
 
   test("overrides access token, updates channels' join payload, and pushes token to channels", async () => {
-    await testHelpers.setupAuthTestChannels(testSetup.socket)
+    const testSetup = setupRealtimeTest()
 
-    dataSpy.mockClear()
+    await testHelpers.setupAuthTestChannels(testSetup.client)
+
+    testSetup.emitters.message.mockClear()
 
     const new_token = 'override'
-    testSetup.socket.setAuth(new_token)
+    testSetup.client.setAuth(new_token)
 
-    assert.strictEqual(testSetup.socket.accessTokenValue, new_token)
+    assert.strictEqual(testSetup.client.accessTokenValue, new_token)
 
-    await testHelpers.assertPushes(new_token, dataSpy, ['test-topic1', 'test-topic3'])
+    await testHelpers.assertPushes(new_token, testSetup.emitters.message, [
+      'test-topic1',
+      'test-topic3',
+    ])
+
+    testSetup.cleanup()
   })
 })
 
@@ -133,14 +141,14 @@ describe('auth during connection states', () => {
     const accessToken = vi.fn(() => Promise.reject(new Error(errorMessage)))
     const logSpy = vi.fn()
 
-    const socketWithError = new RealtimeClient(testSetup.realtimeUrl, {
+    const testSetup = setupRealtimeTest({
       transport: MockWebSocket,
       accessToken,
       logger: logSpy,
       params: { apikey: '123456789' },
     })
 
-    socketWithError.connect()
+    testSetup.connect()
 
     // Verify that the error was logged with more specific message
     await vi.waitFor(() =>
@@ -152,45 +160,43 @@ describe('auth during connection states', () => {
     )
 
     // Verify that the connection was still established despite the error
-    assert.ok(socketWithError.socketAdapter.getSocket().conn, 'connection should still exist')
-    socketWithError.disconnect()
+    assert.ok(testSetup.client.socketAdapter.getSocket().conn, 'connection should still exist')
+    testSetup.cleanup()
   })
 
   test('updates auth token during heartbeat', async () => {
     const initialToken = utils.generateJWT('1h')
     const newToken = utils.generateJWT('3h')
-    const heartbeatSpy: DataSpy = vi.fn()
 
     // Use a mutable token that we can change between heartbeats
     let currentToken = initialToken
-    const heartbeatSetup = testBuilders.standardClient({
+    const heartbeatSetup = setupRealtimeTest({
       accessToken: () => Promise.resolve(currentToken),
-      preparation: (server) => spyOnMessage(server, heartbeatSpy),
     })
 
-    heartbeatSetup.socket.connect()
+    heartbeatSetup.connect()
 
     // Wait for connection to establish
     await vi.waitFor(() => {
-      expect(heartbeatSetup.socket.isConnected()).toBe(true)
+      expect(heartbeatSetup.emitters.connected).toBeCalled()
     })
 
     // Verify initial token is set
-    assert.equal(heartbeatSetup.socket.accessTokenValue, initialToken)
+    assert.equal(heartbeatSetup.client.accessTokenValue, initialToken)
 
     // Change the token that the callback will return
     currentToken = newToken
 
-    heartbeatSpy.mockClear()
+    heartbeatSetup.emitters.message.mockClear()
 
-    await heartbeatSetup.socket.sendHeartbeat()
+    await heartbeatSetup.client.sendHeartbeat()
 
     await vi.waitFor(() => {
-      expect(heartbeatSpy).toHaveBeenCalledWith('phoenix', 'heartbeat', {})
+      expect(heartbeatSetup.emitters.message).toHaveBeenCalledWith('phoenix', 'heartbeat', {})
     })
 
     // Verify the token was updated during heartbeat
-    assert.equal(heartbeatSetup.socket.accessTokenValue, newToken)
+    assert.equal(heartbeatSetup.client.accessTokenValue, newToken)
 
     heartbeatSetup.cleanup()
   })
@@ -203,13 +209,11 @@ describe('auth during connection states', () => {
 
     const accessToken = vi.fn(() => Promise.resolve(tokens[callCount++]))
 
-    testSetup.cleanup()
-    testSetup = testBuilders.standardClient({
+    const testSetup = setupRealtimeTest({
       accessToken,
-      preparation: (server) => {
-        server.on('connection', (socket) => {
-          socket.close()
-        })
+      onConnectionCallback: (socket) => {
+        console.log('CLOSING SOCKET')
+        socket.close()
       },
     })
 
@@ -218,17 +222,18 @@ describe('auth during connection states', () => {
     // Wait for initial token to be set
     await vi.waitFor(() => {
       expect(accessToken).toHaveBeenCalledTimes(1)
-      expect(testSetup.socket.accessTokenValue).toBe(initialToken)
+      expect(testSetup.client.accessTokenValue).toBe(initialToken)
     })
-
-    testSetup.socket.reconnectTimer!.callback()
-
     accessToken.mockClear()
+
+    testSetup.client.reconnectTimer!.callback()
 
     // Wait for the refreshed token to be set
     await vi.waitFor(() => {
-      expect(testSetup.socket.accessTokenValue).toBe(refreshedToken)
+      expect(testSetup.client.accessTokenValue).toBe(refreshedToken)
       expect(accessToken).toHaveBeenCalledTimes(1)
     })
+
+    testSetup.cleanup()
   })
 })
