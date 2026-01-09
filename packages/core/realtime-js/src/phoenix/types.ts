@@ -16,6 +16,10 @@ export type {
   Message,
   Params,
   Transport,
+  Timer,
+  Vsn,
+  Encode,
+  Decode,
   HeartbeatCallback,
   HeartbeatStatus,
 } from 'phoenix'
