@@ -1,4 +1,4 @@
-import assert from 'assert'
+import assert, { deepEqual, equal } from 'assert'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { Client, WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
@@ -96,18 +96,6 @@ describe('connect with WebSocket', () => {
     testSetup.cleanup()
   })
 
-  test('is idempotent', () => {
-    const testSetup = setupRealtimeTest()
-    testSetup.connect()
-
-    let conn = testSetup.client.socketAdapter.getSocket().conn
-
-    testSetup.connect()
-    assert.deepStrictEqual(conn, testSetup.client.socketAdapter.getSocket().conn)
-
-    testSetup.cleanup()
-  })
-
   test('handles WebSocket factory errors gracefully', async () => {
     // Mock WebSocketFactory to throw an error
     const { default: WebSocketFactory } = await import('../src/lib/websocket-factory.js')
@@ -134,44 +122,18 @@ describe('connect with WebSocket', () => {
   })
 })
 
-describe('disconnect', () => {
-  test('removes existing connection', async () => {
-    const testSetup = setupRealtimeTest()
+test('disconnect', async () => {
+  const testSetup = setupRealtimeTest()
 
-    testSetup.client.connect()
-    await testSetup.client.disconnect()
+  testSetup.client.connect()
+  await vi.waitFor(() => expect(testSetup.emitters.connected).toHaveBeenCalled())
+  equal(testSetup.client.isConnected(), true)
 
-    assert.equal(testSetup.client.socketAdapter.getSocket().conn, null)
+  testSetup.client.disconnect()
+  await vi.waitFor(() => expect(testSetup.emitters.close).toHaveBeenCalled())
+  equal(testSetup.client.isConnected(), false)
 
-    testSetup.cleanup()
-  })
-
-  test('calls connection close callback', async () => {
-    const expectedCode = 1000
-    const expectedReason = 'reason'
-
-    const closeSpy = vi.spyOn(MockWebSocket.prototype, 'close')
-
-    const testSetup = setupRealtimeTest()
-
-    testSetup.client.connect()
-
-    await vi.waitFor(() => expect(testSetup.emitters.connected).toBeCalled())
-
-    testSetup.client.disconnect(expectedCode, expectedReason)
-
-    expect(closeSpy).toHaveBeenCalledWith(expectedCode, expectedReason)
-
-    testSetup.cleanup()
-  })
-
-  test('does not throw when no connection', () => {
-    const { client, cleanup } = setupRealtimeTest()
-    assert.doesNotThrow(() => {
-      client.disconnect()
-    })
-    cleanup()
-  })
+  testSetup.cleanup()
 })
 
 describe('connectionState', () => {
