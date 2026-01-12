@@ -1,19 +1,8 @@
 import assert from 'assert'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { testBuilders, EnhancedTestSetup } from './helpers/setup'
+import { setupRealtimeTest, TestSetup } from './helpers/setup'
 import { utils } from './helpers/auth'
 import { CHANNEL_STATES } from '../src/lib/constants'
-
-let testSetup: EnhancedTestSetup
-
-beforeEach(() => {
-  testSetup = testBuilders.standardClient()
-})
-
-afterEach(() => {
-  testSetup.cleanup()
-  testSetup.socket.removeAllChannels()
-})
 
 describe('Custom JWT token preservation', () => {
   test('preserves access token when resubscribing after removeChannel', async () => {
@@ -23,55 +12,84 @@ describe('Custom JWT token preservation', () => {
     // 3. removeChannel
     // 4. Create new channel with same topic and subscribe
 
+    const topic = 'conversation:dc3fb8c1-ceef-4c00-9f92-e496acd03593'
     const customToken = utils.generateJWT('1h')
 
+    const testSetup = setupRealtimeTest()
+
     // Step 1: Set auth with custom token (mimics user's setup)
-    await testSetup.socket.setAuth(customToken)
+    await testSetup.client.setAuth(customToken)
 
     // Verify token was set
-    assert.strictEqual(testSetup.socket.accessTokenValue, customToken)
+    assert.strictEqual(testSetup.client.accessTokenValue, customToken)
 
     // Step 2: Create and subscribe to private channel (first time)
-    const channel1 = testSetup.socket.channel('conversation:dc3fb8c1-ceef-4c00-9f92-e496acd03593', {
+    const channel1 = testSetup.client.channel(topic, {
       config: { private: true },
     })
 
-    // Spy on the push to verify join payload
-    const pushSpy = vi.spyOn(testSetup.socket, 'push')
+    channel1.subscribe()
 
-    // Simulate successful subscription
-    channel1.state = CHANNEL_STATES.closed // Start from closed
-    await channel1.subscribe()
-
-    // Verify first join includes access_token
-    const firstJoinCall = pushSpy.mock.calls.find((call) => call[0]?.event === 'phx_join')
-    expect(firstJoinCall).toBeDefined()
-    expect(firstJoinCall![0].payload).toHaveProperty('access_token', customToken)
+    await vi.waitFor(() =>
+      expect(testSetup.emitters.message).toBeCalledWith(`realtime:${topic}`, 'phx_join', {
+        access_token: customToken,
+        config: {
+          broadcast: {
+            ack: false,
+            self: false,
+          },
+          postgres_changes: [],
+          presence: {
+            enabled: false,
+            key: '',
+          },
+          private: true,
+        },
+      })
+    )
 
     // Step 3: Remove channel (mimics user cleanup)
-    await testSetup.socket.removeChannel(channel1)
+    await testSetup.client.removeChannel(channel1)
+
+    await vi.waitFor(() => {
+      expect(testSetup.emitters.message).toBeCalledWith(`realtime:${topic}`, 'phx_leave', {})
+    })
 
     // Verify channel was removed
-    expect(testSetup.socket.getChannels()).not.toContain(channel1)
+    expect(testSetup.client.getChannels()).not.toContain(channel1)
 
     // Step 4: Create NEW channel with SAME topic and subscribe
-    pushSpy.mockClear()
-    const channel2 = testSetup.socket.channel('conversation:dc3fb8c1-ceef-4c00-9f92-e496acd03593', {
+    const channel2 = testSetup.client.channel(topic, {
       config: { private: true },
     })
 
     // This should be a different channel instance
     expect(channel2).not.toBe(channel1)
 
-    // Subscribe to the new channel
-    channel2.state = CHANNEL_STATES.closed
-    await channel2.subscribe()
+    channel2.subscribe()
 
-    // Verify second join also includes access token
-    const secondJoinCall = pushSpy.mock.calls.find((call) => call[0]?.event === 'phx_join')
+    await vi.waitFor(() =>
+      expect(testSetup.emitters.message).toBeCalledWith(`realtime:${topic}`, 'phx_join', {
+        access_token: customToken,
+        config: {
+          broadcast: {
+            ack: false,
+            self: false,
+          },
+          postgres_changes: [],
+          presence: {
+            enabled: false,
+            key: '',
+          },
+          private: true,
+        },
+      })
+    )
 
-    expect(secondJoinCall).toBeDefined()
-    expect(secondJoinCall![0].payload).toHaveProperty('access_token', customToken)
+    await vi.waitFor(() => expect(channel2.state).toBe('joined'))
+
+    testSetup.cleanup()
+    testSetup.client.removeAllChannels()
   })
 
   test('supports accessToken callback for token rotation', async () => {
@@ -79,7 +97,7 @@ describe('Custom JWT token preservation', () => {
     const customToken = utils.generateJWT('1h')
     let callCount = 0
 
-    const clientWithCallback = testBuilders.standardClient({
+    const clientWithCallback = setupRealtimeTest({
       accessToken: async () => {
         callCount++
         return customToken
@@ -87,10 +105,10 @@ describe('Custom JWT token preservation', () => {
     })
 
     // Set initial auth
-    await clientWithCallback.socket.setAuth()
+    await clientWithCallback.client.setAuth()
 
     // Create and subscribe to first channel
-    const channel1 = clientWithCallback.socket.channel('conversation:test', {
+    const channel1 = clientWithCallback.client.channel('conversation:test', {
       config: { private: true },
     })
 
