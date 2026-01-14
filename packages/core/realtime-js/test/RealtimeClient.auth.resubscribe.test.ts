@@ -180,11 +180,12 @@ describe('Custom JWT token preservation', () => {
 
   test('handles accessToken callback errors gracefully during subscribe', async () => {
     const errorMessage = 'Token fetch failed during subscribe'
-    let callCount = 0
-    const token = 'initial-token' // Second call will throw
+    const token = 'initial_token'
+    let calledOnce = false
 
     const accessToken = vi.fn(() => {
-      if (callCount++ === 0) {
+      if (!calledOnce) {
+        calledOnce = true
         return Promise.resolve(token)
       }
       return Promise.reject(new Error(errorMessage))
