@@ -47,6 +47,16 @@ describe('endpointURL', () => {
     })
     assert.equal(client.endpointURL(), `${testSetup.wssUrl}?apikey=${DEFAULT_API_KEY}&vsn=2.0.0`)
   })
+
+  test('errors out with unsupported version', () => {
+    expect(
+      () =>
+        new RealtimeClient(testSetup.realtimeUrl, {
+          params: { apikey: DEFAULT_API_KEY },
+          vsn: '4.0.0',
+        })
+    ).toThrow(/Unsupported serializer/)
+  })
 })
 
 describe('encode and decode', () => {
