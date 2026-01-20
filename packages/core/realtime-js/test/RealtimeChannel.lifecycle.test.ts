@@ -4,9 +4,8 @@ import { describe, beforeEach, afterEach, test, vi, expect } from 'vitest'
 import RealtimeClient from '../src/RealtimeClient'
 import RealtimeChannel from '../src/RealtimeChannel'
 import { WebSocket } from 'mock-socket'
-import { CHANNEL_STATES } from '../src/lib/constants'
-import Push from '../src/lib/push'
-import { setupRealtimeTest, cleanupRealtimeTest, TestSetup } from './helpers/setup'
+import { CHANNEL_EVENTS, CHANNEL_STATES, CONNECTION_STATE } from '../src/lib/constants'
+import { DEFAULT_API_KEY, setupRealtimeTest, TestSetup } from './helpers/setup'
 
 const defaultRef = '1'
 const defaultTimeout = 1000
@@ -21,31 +20,46 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => cleanupRealtimeTest(testSetup))
+afterEach(() => testSetup.cleanup())
 
 describe('Channel Lifecycle Management', () => {
   describe('constructor', () => {
+    test('sets defaults', () => {
+      channel = new RealtimeChannel('topic', { config: {} }, testSetup.client)
+
+      const expectedParams = {
+        config: {
+          broadcast: { ack: false, self: false },
+          presence: { key: '', enabled: false },
+          private: false,
+        },
+      }
+
+      const expectedJoinPayload = {
+        config: {
+          broadcast: { ack: false, self: false },
+          presence: { key: '', enabled: false },
+          private: false,
+        },
+      }
+
+      assert.equal(channel.state, 'closed')
+      assert.equal(channel.topic, 'topic')
+      assert.deepEqual(channel.socket, testSetup.client)
+      assert.equal(channel.timeout, defaultTimeout)
+      assert.equal(channel.joinedOnce, false)
+      expect(channel.joinPush).toBeTruthy()
+
+      assert.deepEqual(channel.params, expectedParams)
+
+      const joinPush = channel.joinPush
+      assert.deepEqual(joinPush.channel, channel.channelAdapter.getChannel())
+      assert.deepEqual(joinPush.payload(), expectedJoinPayload)
+      assert.equal(joinPush.event, 'phx_join')
+      assert.equal(joinPush.timeout, defaultTimeout)
+    })
+
     test.each([
-      {
-        name: 'sets defaults',
-        config: {},
-        setup: () => {},
-        expectedParams: {
-          config: {
-            broadcast: { ack: false, self: false },
-            presence: { key: '', enabled: false },
-            private: false,
-          },
-        },
-        expectedJoinPayload: {
-          config: {
-            broadcast: { ack: false, self: false },
-            presence: { key: '', enabled: false },
-            private: false,
-          },
-        },
-        testChannelDefaults: true,
-      },
       {
         name: 'sets up joinPush object',
         config: {},
@@ -64,7 +78,6 @@ describe('Channel Lifecycle Management', () => {
             private: false,
           },
         },
-        testChannelDefaults: false,
       },
       {
         name: 'sets up joinPush object with private defined',
@@ -84,7 +97,6 @@ describe('Channel Lifecycle Management', () => {
             private: true,
           },
         },
-        testChannelDefaults: false,
       },
       {
         name: 'sets up joinPush object with presence disabled if no on with type presence is defined',
@@ -107,7 +119,6 @@ describe('Channel Lifecycle Management', () => {
             private: true,
           },
         },
-        testChannelDefaults: false,
       },
       {
         name: 'sets up joinPush object with presence enabled if on with type presence is defined',
@@ -131,7 +142,6 @@ describe('Channel Lifecycle Management', () => {
             private: true,
           },
         },
-        testChannelDefaults: false,
       },
       {
         name: 'sets up joinPush object with presence enabled when config.presence.enabled is true even without bindings',
@@ -158,31 +168,19 @@ describe('Channel Lifecycle Management', () => {
             private: true,
           },
         },
-        testChannelDefaults: false,
       },
-    ])('$name', ({ config, setup, expectedParams, expectedJoinPayload, testChannelDefaults }) => {
-      testSetup.socket.timeout = 1234
-      channel = new RealtimeChannel('topic', { config }, testSetup.socket)
+    ])('$name', ({ config, setup, expectedParams, expectedJoinPayload }) => {
+      channel = new RealtimeChannel('topic', { config }, testSetup.client)
 
       setup(channel)
-
-      if (testChannelDefaults) {
-        assert.equal(channel.state, 'closed')
-        assert.equal(channel.topic, 'topic')
-        assert.deepEqual(channel.socket, testSetup.socket)
-        assert.equal(channel.timeout, 1234)
-        assert.equal(channel.joinedOnce, false)
-        expect(channel.joinPush).toBeTruthy()
-        assert.deepEqual(channel.pushBuffer, [])
-      }
 
       assert.deepEqual(channel.params, expectedParams)
 
       const joinPush = channel.joinPush
-      assert.deepEqual(joinPush.channel, channel)
-      assert.deepEqual(joinPush.payload, expectedJoinPayload)
+      expect(joinPush.channel).toBe(channel.channelAdapter.getChannel())
+      assert.deepEqual(joinPush.payload(), expectedJoinPayload)
       assert.equal(joinPush.event, 'phx_join')
-      assert.equal(joinPush.timeout, 1234)
+      assert.equal(joinPush.timeout, defaultTimeout)
     })
   })
 
