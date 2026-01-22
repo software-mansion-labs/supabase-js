@@ -1,7 +1,7 @@
 import assert from 'assert'
 import { describe, test, beforeEach, afterEach, vi, expect } from "vitest";
 import type RealtimeChannel from "../src/RealtimeChannel";
-import { setupRealtimeTest, type TestSetup } from "./helpers/setup";
+import { DEFAULT_API_KEY, setupRealtimeTest, type TestSetup } from "./helpers/setup";
 import { VSN_1_0_0 } from '../src/lib/constants';
 let testSetup: TestSetup
 
@@ -35,6 +35,7 @@ describe('on', () => {
     test('should filter broadcast events by exact event name', () => {
       let testEventCount = 0
       let otherEventCount = 0
+      let wildcardEventCount = 0
 
       channel.on('broadcast', { event: 'test-event' }, () => {
         testEventCount++
@@ -42,6 +43,10 @@ describe('on', () => {
 
       channel.on('broadcast', { event: 'other-event' }, () => {
         otherEventCount++
+      })
+
+      channel.on('broadcast', {event: "*"}, () => {
+        wildcardEventCount++
       })
 
       // Trigger exact match
@@ -60,6 +65,7 @@ describe('on', () => {
 
       assert.equal(testEventCount, 1)
       assert.equal(otherEventCount, 1)
+      assert.equal(wildcardEventCount, 2)
     })
 
     test('should handle wildcard broadcast events', () => {
@@ -263,7 +269,7 @@ describe('send', () => {
         })
 
         const expectedHeaders: Record<string, string> = {
-          apikey: '123456789',
+          apikey: DEFAULT_API_KEY,
           'Content-Type': 'application/json',
         }
         if (expectedAuth) {
@@ -426,7 +432,7 @@ describe('httpSend', () => {
         expect(fetchStub).toHaveBeenCalledTimes(1)
         const [, options] = fetchStub.mock.calls[0]
         expect(options.headers.Authorization).toBe(expectedAuth)
-        expect(options.headers.apikey).toBe('123456789')
+        expect(options.headers.apikey).toBe(DEFAULT_API_KEY)
       })
 
       test('rejects when payload is not provided', async () => {
