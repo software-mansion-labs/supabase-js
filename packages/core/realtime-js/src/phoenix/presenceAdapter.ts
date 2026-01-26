@@ -18,7 +18,9 @@ export default class PresenceAdapter {
     const phoenixOptions = phoenixPresenceOptions(opts)
     this.presence = new Presence(channel.getChannel(), phoenixOptions)
 
-    this.presence.onJoin((key, currentPresences, newPresences) => {
+    this.presence.onJoin((key, currentPresence, newPresence) => {
+      const currentPresences = currentPresence || []
+      const newPresences = newPresence['metas']
       channel.getChannel().trigger('presence', {
         event: 'join',
         key,
@@ -27,7 +29,9 @@ export default class PresenceAdapter {
       })
     })
 
-    this.presence.onLeave((key, currentPresences, leftPresences) => {
+    this.presence.onLeave((key, currentPresence, leftPresence) => {
+      const currentPresences = currentPresence || []
+      const leftPresences = leftPresence['metas']
       channel.getChannel().trigger('presence', {
         event: 'leave',
         key,
