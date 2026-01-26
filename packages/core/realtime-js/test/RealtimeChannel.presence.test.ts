@@ -1,13 +1,9 @@
 import assert from 'assert'
 import { describe, beforeEach, afterEach, test, vi, expect } from 'vitest'
 import RealtimeChannel from '../src/RealtimeChannel'
-import {
-  setupRealtimeTest,
-  cleanupRealtimeTest,
-  TestSetup,
-  setupJoinedChannelWithSocket,
-} from './helpers/setup'
+import { setupRealtimeTest, TestSetup } from './helpers/setup'
 import { REALTIME_LISTEN_TYPES } from '../src/RealtimeChannel'
+import { CHANNEL_STATES } from '../src/lib/constants'
 
 const defaultTimeout = 1000
 
@@ -19,12 +15,11 @@ beforeEach(() => {
     useFakeTimers: true,
     timeout: defaultTimeout,
   })
-  channel = testSetup.socket.channel('test-presence')
+  channel = testSetup.client.channel('test-presence')
 })
 
 afterEach(() => {
-  cleanupRealtimeTest(testSetup)
-  channel.unsubscribe()
+  testSetup.cleanup()
 })
 
 describe('Presence state management', () => {
