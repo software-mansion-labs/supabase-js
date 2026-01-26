@@ -11,7 +11,6 @@ export type {
   ChannelState,
   ChannelEvent,
   ChannelBindingCallback,
-  ChannelBinding,
   ChannelFilterBindings,
   ChannelOnMessage,
   ChannelOnErrorCallback,
