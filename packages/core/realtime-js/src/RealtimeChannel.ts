@@ -11,7 +11,6 @@ import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
 import { ChannelBindingCallback, ChannelOnErrorCallback } from './phoenix/types'
-import { Timer } from 'phoenix'
 
 type ReplayOption = {
   since: number
@@ -162,7 +161,7 @@ type PostgresChangesFilters = {
 type Binding = {
   type: string
   filter: { [key: string]: any }
-  callback: Function
+  callback: ChannelBindingCallback
   ref: number
   id?: string
 }
@@ -323,7 +322,7 @@ export default class RealtimeChannel {
   private _updatePostgresBindings(
     postgres_changes: PostgresChangesFilters['postgres_changes'],
     callback?: (status: REALTIME_SUBSCRIBE_STATES, err?: Error) => void
-  ): Binding[] | undefined {
+  ) {
     const clientPostgresBindings = this.bindings.postgres_changes
     const bindingsLen = clientPostgresBindings?.length ?? 0
     const newPostgresBindings = []
@@ -348,7 +347,7 @@ export default class RealtimeChannel {
         })
       } else {
         this.unsubscribe()
-        this.channelAdapter.state = CHANNEL_STATES.errored
+        this.state = CHANNEL_STATES.errored
 
         callback?.(
           REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR,
@@ -360,7 +359,9 @@ export default class RealtimeChannel {
 
     this.bindings.postgres_changes = newPostgresBindings
 
-    callback && callback(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED)
+    if (this.state != CHANNEL_STATES.errored && callback) {
+      callback(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED)
+    }
   }
 
   /**
@@ -695,8 +696,8 @@ export default class RealtimeChannel {
    * To receive leave acknowledgements, use the a `receive` hook to bind to the server ack, ie:
    * channel.unsubscribe().receive("ok", () => alert("left!") )
    */
-  unsubscribe(timeout = this.timeout): Promise<'ok' | 'timed out' | 'error'> {
-    return new Promise((resolve) => {
+  async unsubscribe(timeout = this.timeout) {
+    return new Promise<RealtimeChannelSendResponse>((resolve) => {
       this.channelAdapter
         .unsubscribe(timeout)
         .receive('ok', () => resolve('ok'))
