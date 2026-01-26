@@ -11,6 +11,7 @@ import type {
   ChannelState,
   Push,
   Timer,
+  ChannelBinding,
 } from './types'
 
 export default class ChannelAdapter {
@@ -109,6 +110,10 @@ export default class ChannelAdapter {
 
   isLeaving() {
     return this.state === CHANNEL_STATES.leaving
+  }
+
+  getCallback(ref: number): ChannelBinding | undefined {
+    return this.channel.bindings.find((binding) => binding.ref === ref)
   }
 
   updateFilterBindings(filterBindings: ChannelFilterBindings) {
