@@ -29,60 +29,80 @@ describe('Presence state management', () => {
   })
 
   test('should enable presence when presence listeners are added', () => {
-    // @ts-ignore - using simplified typing for test
     channel.on('presence', { event: 'sync' }, () => {})
 
-    // Set presence enabled directly to match what the binding should do
-    if (channel.params.config.presence) {
-      channel.params.config.presence.enabled = true
-    }
-
-    // Mock successful subscription
-    const mockResponse = { postgres_changes: undefined }
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         assert.equal(channel.params.config.presence?.enabled, true)
       }
     })
-
-    // Simulate successful join
-    channel.joinPush.trigger('ok', mockResponse)
   })
 
-  test('should handle presence join events', () => {
+  test('should handle presence join events', async () => {
     let joinPayload: any = null
 
-    // @ts-ignore - using simplified typing for test
     channel.on('presence', { event: 'join' }, (payload) => {
       joinPayload = payload
     })
 
-    // Simulate presence join message
-    const mockJoinPayload = {
-      type: 'presence',
-      event: 'join',
-      key: 'user-123',
-      currentPresences: [],
-      newPresences: [{ user_id: 'user-123', name: 'John' }],
-    }
+    channel.subscribe()
+    await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
 
-    channel._trigger('presence', mockJoinPayload)
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: channel.topic,
+        event: 'presence_state',
+        payload: {},
+      })
+    )
 
-    assert.deepEqual(joinPayload, mockJoinPayload)
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: channel.topic,
+        event: 'presence_diff',
+        payload: {
+          joins: {
+            'user-123': {
+              metas: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }],
+            },
+          },
+          leaves: {},
+        },
+      })
+    )
+
+    await vi.waitFor(() =>
+      expect(joinPayload).toEqual({
+        currentPresences: [],
+        event: 'join',
+        key: 'user-123',
+        newPresences: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }],
+      })
+    )
   })
 
-  test('should handle presence sync events', () => {
+  test('should handle presence sync events', async () => {
     let syncTriggered = false
 
-    // @ts-ignore - using simplified typing for test
     channel.on('presence', { event: 'sync' }, () => {
       syncTriggered = true
     })
 
-    // Simulate presence sync message
-    channel._trigger('presence', { type: 'presence', event: 'sync' })
+    channel.subscribe()
+    await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
 
-    assert.equal(syncTriggered, true)
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: channel.topic,
+        event: 'presence_state',
+        payload: {},
+      })
+    )
+
+    await vi.waitFor(() => expect(syncTriggered).toBe(true))
   })
 })
 
