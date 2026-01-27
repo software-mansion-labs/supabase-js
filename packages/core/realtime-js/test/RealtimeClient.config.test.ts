@@ -37,7 +37,10 @@ describe('endpointURL', () => {
     const client = new RealtimeClient(testSetup.realtimeUrl, {
       params: { apikey: DEFAULT_API_KEY },
     })
-    assert.equal(client.endpointURL(), `${testSetup.wssUrl}?apikey=${DEFAULT_API_KEY}&vsn=${DEFAULT_VSN}`)
+    assert.equal(
+      client.endpointURL(),
+      `${testSetup.wssUrl}?apikey=${DEFAULT_API_KEY}&vsn=${DEFAULT_VSN}`
+    )
   })
 
   test('returns endpoint with valid vsn', () => {

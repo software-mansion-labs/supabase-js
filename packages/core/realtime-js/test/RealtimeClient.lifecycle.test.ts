@@ -1,5 +1,5 @@
 import assert, { equal } from 'assert'
-import {  describe, expect, test, vi } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { Client, WebSocket as MockWebSocket } from 'mock-socket'
 import RealtimeClient from '../src/RealtimeClient'
 import { DEFAULT_REALTIME_URL, setupRealtimeTest } from './helpers/setup'

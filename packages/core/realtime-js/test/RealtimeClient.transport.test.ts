@@ -64,7 +64,7 @@ describe('custom encoder and decoder', () => {
 
   test('decodes JSON by default', () => {
     testSetup = setupRealtimeTest({
-      decode: undefined
+      decode: undefined,
     })
     let payload = JSON.stringify(['2', '1', 'test-topic', 'test-event', { key: 'value' }])
 
