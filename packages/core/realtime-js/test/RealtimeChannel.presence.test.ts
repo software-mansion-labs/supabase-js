@@ -48,6 +48,7 @@ describe('Presence state management', () => {
     channel.subscribe()
     await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
 
+    // Must receive presence_state before presence_diff
     testSetup.mockServer.emit(
       'message',
       JSON.stringify({
@@ -83,6 +84,54 @@ describe('Presence state management', () => {
     )
   })
 
+  test('should handle presence leave events', async () => {
+    let leavePayload: any = null
+
+    channel.on('presence', { event: 'leave' }, (payload) => {
+      leavePayload = payload
+    })
+
+    channel.subscribe()
+    await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
+
+    // Must receive presence_state before presence_diff
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: channel.topic,
+        event: 'presence_state',
+        payload: {
+          'user-123': { metas: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }] },
+        },
+      })
+    )
+
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: channel.topic,
+        event: 'presence_diff',
+        payload: {
+          joins: {},
+          leaves: {
+            'user-123': {
+              metas: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }],
+            },
+          },
+        },
+      })
+    )
+
+    await vi.waitFor(() =>
+      expect(leavePayload).toEqual({
+        currentPresences: [],
+        event: 'leave',
+        key: 'user-123',
+        leftPresences: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }],
+      })
+    )
+  })
+
   test('should handle presence sync events', async () => {
     let syncTriggered = false
 
@@ -104,45 +153,105 @@ describe('Presence state management', () => {
 
     await vi.waitFor(() => expect(syncTriggered).toBe(true))
   })
+
+  test('should wait for presence_state before processing presence_diff', async () => {
+    let joinPayload: any = null
+
+    channel.on('presence', { event: 'join' }, (payload) => {
+      joinPayload = payload
+    })
+
+    channel.subscribe()
+    await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
+
+    // Emit presence_diff before presence_state
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: channel.topic,
+        event: 'presence_diff',
+        payload: {
+          joins: {
+            'user-123': {
+              metas: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }],
+            },
+          },
+          leaves: {},
+        },
+      })
+    )
+
+    // Delay presence_state emission
+    setTimeout(() => {
+      testSetup.mockServer.emit(
+        'message',
+        JSON.stringify({
+          topic: channel.topic,
+          event: 'presence_state',
+          payload: {},
+        })
+      )
+    }, 100)
+
+    expect(joinPayload).toBeNull()
+
+    await vi.waitFor(() =>
+      expect(joinPayload).toEqual({
+        currentPresences: [],
+        event: 'join',
+        key: 'user-123',
+        newPresences: [{ phx_ref: 'phoenix_ref', name: 'John', user_id: 'user-123' }],
+      })
+    )
+  })
 })
 
 describe('Presence message filtering', () => {
-  test('should filter presence messages by event type', () => {
+  test('should filter presence messages by event type', async () => {
     let syncCount = 0
     let joinCount = 0
 
-    // @ts-ignore - using simplified typing for test
     channel.on('presence', { event: 'sync' }, () => {
       syncCount++
     })
-    // @ts-ignore - using simplified typing for test
+
     channel.on('presence', { event: 'join' }, () => {
       joinCount++
     })
 
-    // Trigger sync event
-    channel._trigger('presence', { type: 'presence', event: 'sync' })
-    assert.equal(syncCount, 1)
-    assert.equal(joinCount, 0)
+    channel.channelAdapter.getChannel().trigger('presence', { event: 'sync' })
 
-    // Trigger join event
-    channel._trigger('presence', { type: 'presence', event: 'join' })
-    assert.equal(syncCount, 1)
-    assert.equal(joinCount, 1)
+    await vi.waitFor(() => expect(syncCount).toBe(1))
+    expect(joinCount).toBe(0)
+
+    channel.channelAdapter.getChannel().trigger('presence', {
+      event: 'join',
+      topic: channel.topic,
+      payload: {
+        joins: {
+          'user-123': {
+            metas: [{ phx_ref: 'phoenix_ref' }],
+          },
+        },
+        leaves: {},
+      },
+    })
+
+    await vi.waitFor(() => expect(joinCount).toBe(1))
+    expect(syncCount).toBe(1) // sync is trigger with `presence_diff`
   })
 
   test('should handle wildcard presence events', () => {
     let eventCount = 0
 
-    // @ts-ignore - using simplified typing for test
     channel.on('presence', { event: '*' }, () => {
       eventCount++
     })
 
     // Trigger different presence events
-    channel._trigger('presence', { type: 'presence', event: 'sync' })
-    channel._trigger('presence', { type: 'presence', event: 'join' })
-    channel._trigger('presence', { type: 'presence', event: 'leave' })
+    channel.channelAdapter.getChannel().trigger('presence', { type: 'presence', event: 'sync' })
+    channel.channelAdapter.getChannel().trigger('presence', { type: 'presence', event: 'join' })
+    channel.channelAdapter.getChannel().trigger('presence', { type: 'presence', event: 'leave' })
 
     assert.equal(eventCount, 3)
   })
