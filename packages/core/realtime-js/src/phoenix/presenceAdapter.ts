@@ -1,5 +1,5 @@
 import { Presence } from 'phoenix'
-import type { PresenceStates } from './types'
+import type { PresenceState, PresenceStates } from './types'
 import type {
   RealtimePresenceOptions,
   RealtimePresenceState,
@@ -19,7 +19,7 @@ export default class PresenceAdapter {
     this.presence = new Presence(channel.getChannel(), phoenixOptions)
 
     this.presence.onJoin((key, currentPresence, newPresence) => {
-      const currentPresences = currentPresence || []
+      const currentPresences = parseCurrentPresences(currentPresence)
       const newPresences = newPresence['metas']
       channel.getChannel().trigger('presence', {
         event: 'join',
@@ -30,7 +30,7 @@ export default class PresenceAdapter {
     })
 
     this.presence.onLeave((key, currentPresence, leftPresence) => {
-      const currentPresences = currentPresence || []
+      const currentPresences = parseCurrentPresences(currentPresence)
       const leftPresences = leftPresence['metas']
       channel.getChannel().trigger('presence', {
         event: 'leave',
@@ -94,4 +94,8 @@ function cloneState(state: PresenceStates): PresenceStates {
 
 function phoenixPresenceOptions(opts?: RealtimePresenceOptions) {
   return opts?.events && { events: opts.events }
+}
+
+function parseCurrentPresences(currentPresences?: PresenceState) {
+  return currentPresences?.metas || []
 }
