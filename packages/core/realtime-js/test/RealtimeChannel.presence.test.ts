@@ -258,6 +258,27 @@ describe('Presence message filtering', () => {
 })
 
 describe('Presence helper methods', () => {
+  beforeEach(() => {
+    testSetup.cleanup()
+    testSetup = setupRealtimeTest({
+      timeout: defaultTimeout,
+      socketHandlers: {
+        presence: (socket, msg) => {
+          const { topic, ref } = JSON.parse(msg as string)
+          socket.send(
+            JSON.stringify({
+              topic: topic,
+              event: 'phx_reply',
+              payload: { status: 'ok', response: {} },
+              ref: ref,
+            })
+          )
+        },
+      },
+    })
+    channel = testSetup.client.channel('test-presence')
+  })
+
   test('gets transformed presence state', () => {
     // @ts-ignore - accessing private fields for testing
     channel.presence.presenceAdapter.presence.state = { u1: { metas: [{ id: 1, phx_ref: '1' }] } }
@@ -280,12 +301,23 @@ describe('Presence helper methods', () => {
       timeout: {},
     },
   ])('$method presence via send method', async ({ method, payload, expectedCall, timeout }) => {
-    setupJoinedChannelWithSocket(channel, testSetup.socket)
-    const sendStub = vi.spyOn(channel, 'send').mockResolvedValue('ok')
+    channel.subscribe()
+    await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
 
-    await (payload ? channel[method](payload) : channel[method]())
+    // @ts-ignore weird call to make test generic
+    const resp = await (payload ? channel[method](payload) : channel[method]())
 
-    expect(sendStub).toHaveBeenCalledWith(expectedCall, timeout)
+    const { type, event, payload: payloadValue } = expectedCall
+
+    await vi.waitFor(() =>
+      expect(testSetup.emitters.message).toHaveBeenCalledWith('realtime:test-presence', type, {
+        event: event,
+        type: type,
+        payload: payloadValue,
+      })
+    )
+
+    expect(resp).toBe('ok')
   })
 })
 
