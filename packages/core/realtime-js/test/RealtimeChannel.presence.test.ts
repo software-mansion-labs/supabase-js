@@ -322,8 +322,28 @@ describe('Presence helper methods', () => {
 })
 
 describe('Presence configuration override', () => {
+  beforeEach(() => {
+    testSetup.cleanup()
+    testSetup = setupRealtimeTest({
+      timeout: defaultTimeout,
+      socketHandlers: {
+        presence: (socket, msg) => {
+          const { topic, ref } = JSON.parse(msg as string)
+          socket.send(
+            JSON.stringify({
+              topic: topic,
+              event: 'phx_reply',
+              payload: { status: 'ok', response: {} },
+              ref: ref,
+            })
+          )
+        },
+      },
+    })
+  })
+
   test('should enable presence when config.presence.enabled is true even without bindings', () => {
-    const channelWithPresenceEnabled = testSetup.socket.channel('test-presence-override', {
+    const channelWithPresenceEnabled = testSetup.client.channel('test-presence-override', {
       config: { presence: { enabled: true } },
     })
     assert.equal(
@@ -331,66 +351,93 @@ describe('Presence configuration override', () => {
       undefined
     )
     channelWithPresenceEnabled.subscribe()
-    const joinPayload = channelWithPresenceEnabled.joinPush.payload
+
+    const joinPayload = channelWithPresenceEnabled.joinPush.payload()
+    // @ts-ignore not typed payload
     assert.equal(joinPayload.config.presence.enabled, true)
     channelWithPresenceEnabled.unsubscribe()
   })
 
   test('should enable presence when both bindings exist and config.presence.enabled is true', () => {
-    const channelWithBoth = testSetup.socket.channel('test-presence-both', {
+    const channelWithBoth = testSetup.client.channel('test-presence-both', {
       config: { presence: { enabled: true } },
     })
     channelWithBoth.on('presence', { event: 'sync' }, () => {})
     channelWithBoth.subscribe()
-    const joinPayload = channelWithBoth.joinPush.payload
+    const joinPayload = channelWithBoth.joinPush.payload()
+    // @ts-ignore not typed payload
     assert.equal(joinPayload.config.presence.enabled, true)
     channelWithBoth.unsubscribe()
   })
 
   test('should enable presence when only bindings exist (existing behavior)', () => {
-    const channelWithBindingsOnly = testSetup.socket.channel('test-presence-bindings-only')
+    const channelWithBindingsOnly = testSetup.client.channel('test-presence-bindings-only')
     channelWithBindingsOnly.on('presence', { event: 'sync' }, () => {})
     channelWithBindingsOnly.subscribe()
-    const joinPayload = channelWithBindingsOnly.joinPush.payload
+    const joinPayload = channelWithBindingsOnly.joinPush.payload()
+    // @ts-ignore not typed payload
     assert.equal(joinPayload.config.presence.enabled, true)
     channelWithBindingsOnly.unsubscribe()
   })
 
   test('should not enable presence when neither bindings exist nor config.presence.enabled is true', () => {
-    const channelWithNeither = testSetup.socket.channel('test-presence-neither')
+    const channelWithNeither = testSetup.client.channel('test-presence-neither')
     assert.equal(channelWithNeither.bindings[REALTIME_LISTEN_TYPES.PRESENCE]?.length, undefined)
     channelWithNeither.subscribe()
-    const joinPayload = channelWithNeither.joinPush.payload
+    const joinPayload = channelWithNeither.joinPush.payload()
+    // @ts-ignore not typed payload
     assert.equal(joinPayload.config.presence.enabled, false)
     channelWithNeither.unsubscribe()
   })
 
   test('should allow using track() method when presence is enabled via config override', async () => {
-    const channelWithPresenceEnabled = testSetup.socket.channel('test-presence-track', {
+    const channelWithPresenceEnabled = testSetup.client.channel('test-presence-track', {
       config: { presence: { enabled: true } },
     })
-    setupJoinedChannelWithSocket(channelWithPresenceEnabled, testSetup.socket)
-    const sendStub = vi.spyOn(channelWithPresenceEnabled, 'send').mockResolvedValue('ok')
-    await channelWithPresenceEnabled.track({ id: 123, name: 'Test User' })
-    expect(sendStub).toHaveBeenCalledWith(
-      {
-        type: 'presence',
-        event: 'track',
-        payload: { id: 123, name: 'Test User' },
-      },
-      1000
+
+    channelWithPresenceEnabled.subscribe()
+    await vi.waitFor(() => expect(channelWithPresenceEnabled.state).toBe(CHANNEL_STATES.joined))
+
+    const resp = await channelWithPresenceEnabled.track({ id: 123, name: 'Test User' })
+    expect(resp).toBe('ok')
+
+    await vi.waitFor(() =>
+      expect(testSetup.emitters.message).toHaveBeenCalledWith(
+        'realtime:test-presence-track',
+        'presence',
+        {
+          type: 'presence',
+          event: 'track',
+          payload: { id: 123, name: 'Test User' },
+        }
+      )
     )
+
     channelWithPresenceEnabled.unsubscribe()
   })
 
   test('should allow using untrack() method when presence is enabled via config override', async () => {
-    const channelWithPresenceEnabled = testSetup.socket.channel('test-presence-untrack', {
+    const channelWithPresenceEnabled = testSetup.client.channel('test-presence-untrack', {
       config: { presence: { enabled: true } },
     })
-    setupJoinedChannelWithSocket(channelWithPresenceEnabled, testSetup.socket)
-    const sendStub = vi.spyOn(channelWithPresenceEnabled, 'send').mockResolvedValue('ok')
-    await channelWithPresenceEnabled.untrack()
-    expect(sendStub).toHaveBeenCalledWith({ type: 'presence', event: 'untrack' }, {})
+
+    channelWithPresenceEnabled.subscribe()
+    await vi.waitFor(() => expect(channelWithPresenceEnabled.state).toBe(CHANNEL_STATES.joined))
+
+    const resp = await channelWithPresenceEnabled.untrack()
+    expect(resp).toBe('ok')
+
+    await vi.waitFor(() =>
+      expect(testSetup.emitters.message).toHaveBeenCalledWith(
+        'realtime:test-presence-untrack',
+        'presence',
+        {
+          type: 'presence',
+          event: 'untrack',
+        }
+      )
+    )
+
     channelWithPresenceEnabled.unsubscribe()
   })
 })
