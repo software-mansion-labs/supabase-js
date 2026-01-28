@@ -174,13 +174,13 @@ describe('Channel Lifecycle Management', () => {
 
       setup(channel)
 
-      assert.deepEqual(channel.params, expectedParams)
+      expect(channel.params).toStrictEqual(expectedParams)
 
       const joinPush = channel.joinPush
       expect(joinPush.channel).toBe(channel.channelAdapter.getChannel())
-      assert.deepEqual(joinPush.payload(), expectedJoinPayload)
-      assert.equal(joinPush.event, 'phx_join')
-      assert.equal(joinPush.timeout, defaultTimeout)
+      expect(joinPush.payload()).toStrictEqual(expectedJoinPayload)
+      expect(joinPush.event).toStrictEqual('phx_join')
+      expect(joinPush.timeout).toStrictEqual(defaultTimeout)
     })
   })
 
