@@ -1,7 +1,7 @@
 import assert from 'assert'
 import { describe, beforeEach, afterEach, test, vi, expect } from 'vitest'
 import RealtimeChannel from '../src/RealtimeChannel'
-import { setupRealtimeTest, TestSetup } from './helpers/setup'
+import { setupRealtimeTest, type TestSetup } from './helpers/setup'
 import { REALTIME_LISTEN_TYPES } from '../src/RealtimeChannel'
 import { CHANNEL_STATES } from '../src/lib/constants'
 
