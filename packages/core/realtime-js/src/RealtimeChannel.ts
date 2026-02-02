@@ -1,4 +1,4 @@
-import { CHANNEL_STATES } from './lib/constants'
+import { CHANNEL_EVENTS, CHANNEL_STATES } from './lib/constants'
 import type { ChannelState } from './lib/constants'
 import type RealtimeClient from './RealtimeClient'
 import RealtimePresence, { REALTIME_PRESENCE_LISTEN_EVENTS } from './RealtimePresence'
@@ -10,7 +10,7 @@ import type {
 import * as Transformers from './lib/transformers'
 import { httpEndpointURL } from './lib/transformers'
 import ChannelAdapter from './phoenix/channelAdapter'
-import { ChannelBindingCallback, ChannelOnErrorCallback } from './phoenix/types'
+import { ChannelBindingCallback, ChannelOnErrorCallback, Push } from './phoenix/types'
 
 type ReplayOption = {
   since: number
@@ -290,6 +290,8 @@ export default class RealtimeChannel {
       this._updateFilterTransform()
 
       this.updateJoinPayload({ ...{ config }, ...accessTokenPayload })
+
+      this._updateFilterMessage()
 
       this.channelAdapter
         .subscribe(timeout)
@@ -769,6 +771,11 @@ export default class RealtimeChannel {
   private _updateFilterMessage() {
     this.channelAdapter.updateFilterBindings((binding, payload: any, ref) => {
       const typeLower = binding.event.toLocaleLowerCase()
+
+      if (this._notChannelEvent(typeLower, ref)) {
+        return false
+      }
+
       const bind = this.bindings[typeLower]?.find((bind) => bind.ref === binding.ref)
 
       if (!bind) {
@@ -794,6 +801,12 @@ export default class RealtimeChannel {
         return bind.type.toLocaleLowerCase() === typeLower
       }
     })
+  }
+
+  private _notChannelEvent(event: string, ref?: string | null) {
+    const { close, error, leave, join } = CHANNEL_EVENTS
+    const events: string[] = [close, error, leave, join]
+    return ref && events.indexOf(event) != -1 && ref !== this.joinPush.ref
   }
 
   /** @internal */
