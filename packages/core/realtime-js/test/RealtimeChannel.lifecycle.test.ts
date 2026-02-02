@@ -212,7 +212,7 @@ describe('Channel Lifecycle Management', () => {
 
     test('if attempting to join multiple times, ignores calls', async () => {
       channel.subscribe()
-      await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
+      await waitForChannelSubscribed(channel)
 
       for (let i = 0; i < 10; ++i) channel.subscribe()
 
@@ -244,8 +244,7 @@ describe('Channel Lifecycle Management', () => {
       testSetup.client.accessTokenValue = 'token123'
 
       channel.subscribe()
-
-      await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
+      await waitForChannelSubscribed(channel)
 
       expect(channel.joinPush.payload()).toStrictEqual({
         access_token: 'token123',
@@ -585,8 +584,7 @@ describe('Channel Lifecycle Management', () => {
       })
       channel = testSetup.client.channel('topic')
       channel.subscribe()
-
-      await vi.waitFor(() => expect(channel.state).toBe(CHANNEL_STATES.joined))
+      await waitForChannelSubscribed(channel)
 
       const result = await channel.unsubscribe()
 

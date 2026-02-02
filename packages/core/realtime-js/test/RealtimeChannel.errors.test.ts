@@ -27,7 +27,7 @@ afterEach(() => {
 describe('Error Recovery & Resilience', () => {
   beforeEach(async () => {
     testSetup.connect()
-    await vi.waitFor(() => expect(testSetup.emitters.connected).toHaveBeenCalled())
+    await testSetup.socketConnected()
     channel = testSetup.client.channel('test-resilience')
   })
 
@@ -211,7 +211,7 @@ describe('Error Recovery & Resilience', () => {
       await waitForChannelSubscribed(channel)
 
       testSetup.disconnect()
-      await vi.waitFor(() => expect(testSetup.emitters.close).toHaveBeenCalled())
+      await testSetup.socketClosed()
 
       // Directly set state to errored and schedule rejoin
       channel.state = CHANNEL_STATES.errored
