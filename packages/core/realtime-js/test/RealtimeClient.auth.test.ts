@@ -211,7 +211,6 @@ describe('auth during connection states', () => {
     const testSetup = setupRealtimeTest({
       accessToken,
       onConnectionCallback: (socket) => {
-        console.log('CLOSING SOCKET')
         socket.close()
       },
     })
