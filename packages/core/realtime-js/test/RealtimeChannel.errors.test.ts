@@ -414,71 +414,6 @@ describe('Improved Cleanup & Bounded Buffer', () => {
     channel = testSetup.client.channel('test-cleanup')
   })
 
-  // describe.skip('Enhanced teardown', () => {
-  //   test('should perform complete cleanup', async () => {
-  //     // Add pushes to buffer
-  //     channel.subscribe()
-
-  //     await waitForChannelSubscribed(channel)
-  //     testSetup.disconnect()
-  //     await testSetup.socketClosed()
-
-  //     channel.channelAdapter.push('test', { data: 'test1' })
-  //     channel.channelAdapter.push('test', { data: 'test2' })
-
-  //     expect(channel.channelAdapter.getChannel().pushBuffer.length).toBe(2)
-
-  //     // Schedule rejoin timer
-  //     channel.rejoinTimer.scheduleTimeout()
-  //     expect(channel.rejoinTimer.timer).toBeTruthy()
-
-  //     // Perform teardown
-  //     channel.teardown()
-
-  //     // Verify important cleanup
-  //     assert.equal(channel.pushBuffer.length, 0)
-  //     assert.equal(channel.state, 'closed')
-  //     assert.equal(channel.rejoinTimer.timer, undefined)
-  //     // Bindings are cleared (this clears ALL bindings, not just user ones)
-  //     assert.deepEqual(channel.bindings, {})
-  //   })
-
-  //   test('should be safe to call multiple times', () => {
-  //     // First teardown
-  //     channel.teardown()
-  //     assert.equal(channel.state, 'closed')
-
-  //     // Second teardown should not throw or cause issues
-  //     channel.teardown()
-  //     assert.equal(channel.state, 'closed')
-
-  //     // Should still be safe to call again
-  //     channel.teardown()
-  //     assert.equal(channel.state, 'closed')
-  //   })
-
-  //   test('should destroy all pushes in buffer before clearing', () => {
-  //     setupJoinedChannel(channel)
-  //     setupDisconnectedSocket(testSetup.socket)
-
-  //     // Add pushes to buffer
-  //     channel._push('test', { data: 'test1' })
-  //     channel._push('test', { data: 'test2' })
-
-  //     const push1 = channel.pushBuffer[0]
-  //     const push2 = channel.pushBuffer[1]
-
-  //     const destroySpy1 = vi.spyOn(push1, 'destroy')
-  //     const destroySpy2 = vi.spyOn(push2, 'destroy')
-
-  //     channel.teardown()
-
-  //     expect(destroySpy1).toHaveBeenCalledTimes(1)
-  //     expect(destroySpy2).toHaveBeenCalledTimes(1)
-  //     assert.equal(channel.pushBuffer.length, 0)
-  //   })
-  // })
-
   describe('Bounded push buffer', () => {
     let logSpy = vi.fn()
 
@@ -581,24 +516,6 @@ describe('Improved Cleanup & Bounded Buffer', () => {
   })
 
   describe('Memory leak prevention', () => {
-    // test('should clean up all references on teardown', () => {
-    //   // Add pushes
-    //   setupJoinedChannel(channel)
-    //   setupDisconnectedSocket(testSetup.socket)
-    //   channel._push('test', { data: 'test' })
-
-    //   // Verify state before teardown
-    //   assert.equal(channel.pushBuffer.length, 1)
-
-    //   // Teardown
-    //   channel.teardown()
-
-    //   // Verify all references are cleaned
-    //   assert.deepEqual(channel.bindings, {})
-    //   assert.equal(channel.pushBuffer.length, 0)
-    //   assert.equal(channel.state, 'closed')
-    // })
-
     test('should prevent push buffer growth during disconnection', async () => {
       channel.subscribe()
       await waitForChannelSubscribed(channel)
