@@ -176,9 +176,7 @@ describe('auth during connection states', () => {
     heartbeatSetup.connect()
 
     // Wait for connection to establish
-    await vi.waitFor(() => {
-      expect(heartbeatSetup.emitters.connected).toBeCalled()
-    })
+    await heartbeatSetup.socketConnected()
 
     // Verify initial token is set
     assert.equal(heartbeatSetup.client.accessTokenValue, initialToken)
