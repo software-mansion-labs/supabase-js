@@ -1,5 +1,5 @@
 import { Channel } from 'phoenix'
-import { CHANNEL_STATES } from '../lib/constants'
+import { CHANNEL_STATES, MAX_PUSH_BUFFER_SIZE } from '../lib/constants'
 import type { RealtimeChannelOptions } from '../RealtimeChannel'
 import SocketAdapter from './socketAdapter'
 import type {
@@ -73,7 +73,20 @@ export default class ChannelAdapter {
 
   push(event: string, payload: { [key: string]: any }, timeout?: number): Push {
     try {
-      return this.channel.push(event, payload, timeout)
+      const push = this.channel.push(event, payload, timeout)
+
+      if (this.channel.pushBuffer.length > MAX_PUSH_BUFFER_SIZE) {
+        const removedPush = this.channel.pushBuffer.shift()
+        if (removedPush) {
+          removedPush.cancelTimeout()
+          this.socket.log(
+            'channel',
+            `discarded push due to buffer overflow: ${removedPush.event}`,
+            removedPush.payload()
+          )
+        }
+      }
+      return push
     } catch (error) {
       throw `tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`
     }
@@ -81,14 +94,6 @@ export default class ChannelAdapter {
 
   updateJoinPayload(payload: Record<string, any>) {
     this.channel.joinPush.payload = () => payload
-  }
-
-  joinRef(): string {
-    if (!this.channel.joinPush.ref) {
-      throw new Error('Join push reference not found')
-    }
-
-    return this.channel.joinPush.ref
   }
 
   canPush() {
