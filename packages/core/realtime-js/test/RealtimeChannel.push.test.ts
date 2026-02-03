@@ -3,7 +3,13 @@ import { describe, beforeEach, afterEach, test, vi, expect } from 'vitest'
 import RealtimeClient from '../src/RealtimeClient'
 import RealtimeChannel from '../src/RealtimeChannel'
 import { CHANNEL_STATES } from '../src/lib/constants'
-import { setupRealtimeTest, cleanupRealtimeTest, TestSetup } from './helpers/setup'
+import {
+  phxJoinReply,
+  phxReply,
+  setupRealtimeTest,
+  TestSetup,
+  waitForChannelSubscribed,
+} from './helpers/setup'
 
 const defaultRef = '1'
 const defaultTimeout = 1000
@@ -15,64 +21,66 @@ beforeEach(() => {
   testSetup = setupRealtimeTest({
     useFakeTimers: true,
     timeout: defaultTimeout,
+    socketHandlers: {
+      phx_join: () => {},
+    },
   })
 })
 
-afterEach(() => cleanupRealtimeTest(testSetup))
+afterEach(() => testSetup.cleanup())
 
 describe('push', () => {
-  let socketSpy: any
+  const pushParams = ['realtime:topic', 'event', { foo: 'bar' }]
 
-  const pushParams = {
-    topic: 'realtime:topic',
-    event: 'event',
-    payload: { foo: 'bar' },
-    ref: defaultRef,
-    join_ref: defaultRef,
-  }
+  beforeEach(async () => {
+    testSetup.connect()
+    await testSetup.socketConnected()
 
-  beforeEach(() => {
-    vi.spyOn(testSetup.socket, '_makeRef').mockImplementation(() => defaultRef)
-    vi.spyOn(testSetup.socket, 'isConnected').mockImplementation(() => true)
-    socketSpy = vi.spyOn(testSetup.socket, 'push')
-
-    channel = testSetup.socket.channel('topic')
+    channel = testSetup.client.channel('topic')
   })
 
   afterEach(() => {
     channel.unsubscribe()
+    testSetup.cleanup()
   })
 
-  test('sends push event when successfully joined', () => {
+  test('sends push event when successfully joined', async () => {
     channel.subscribe()
-    channel.joinPush.trigger('ok', {})
-    channel._push('event', { foo: 'bar' })
+    testSetup.mockServer.emit('message', phxJoinReply(channel, {}))
+    await waitForChannelSubscribed(channel)
 
-    expect(socketSpy).toHaveBeenCalledWith(pushParams)
+    testSetup.emitters.message.mockClear()
+
+    channel.channelAdapter.push('event', { foo: 'bar' })
+
+    await vi.waitFor(() => expect(testSetup.emitters.message).toHaveBeenCalledWith(...pushParams))
   })
 
-  test('enqueues push event to be sent once join has succeeded', () => {
+  test('enqueues push event to be sent once join has succeeded', async () => {
     channel.subscribe()
-    channel._push('event', { foo: 'bar' })
-
-    expect(socketSpy).not.toHaveBeenCalledWith(pushParams)
+    channel.channelAdapter.push('event', { foo: 'bar' })
 
     vi.advanceTimersByTime(channel.timeout / 2)
-    channel.joinPush.trigger('ok', {})
 
-    expect(socketSpy).toHaveBeenCalledWith(pushParams)
+    expect(testSetup.emitters.message).toHaveBeenCalledTimes(1) // phx_join
+
+    expect(testSetup.emitters.message).not.toHaveBeenCalledWith(...pushParams)
+
+    testSetup.mockServer.emit('message', phxJoinReply(channel, {}))
+
+    await vi.waitFor(() => expect(testSetup.emitters.message).toHaveBeenCalledWith(...pushParams))
   })
 
   test('does not push if channel join times out', () => {
     channel.subscribe()
-    channel._push('event', { foo: 'bar' })
+    channel.channelAdapter.push('event', { foo: 'bar' })
 
-    expect(socketSpy).not.toHaveBeenCalledWith(pushParams)
+    expect(testSetup.emitters.message).not.toHaveBeenCalledWith(...pushParams)
 
     vi.advanceTimersByTime(channel.timeout * 2)
     channel.joinPush.trigger('ok', {})
 
-    expect(socketSpy).not.toHaveBeenCalledWith(pushParams)
+    expect(testSetup.emitters.message).not.toHaveBeenCalledWith(...pushParams)
   })
 
   test('uses channel timeout by default', () => {
