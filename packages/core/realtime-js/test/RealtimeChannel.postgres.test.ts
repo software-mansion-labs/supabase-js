@@ -554,18 +554,15 @@ describe('PostgreSQL payload transformation', () => {
   test('should transform postgres_changes payload when triggered', () => {
     const callbackSpy = vi.fn()
 
-    // Add postgres_changes binding
-    channel.bindings.postgres_changes = [
-      {
-        id: 'abc123',
-        type: 'postgres_changes',
-        filter: { event: 'INSERT', schema: 'public', table: 'users' },
-        callback: callbackSpy,
-      },
-    ]
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'users' },
+      callbackSpy
+    )
+    channel.bindings.postgres_changes[0].id = 'abc123'
 
     // Trigger with postgres_changes payload
-    channel._trigger(
+    channel.channelAdapter.getChannel().trigger(
       'postgres_changes',
       {
         ids: ['abc123'],
@@ -586,48 +583,35 @@ describe('PostgreSQL payload transformation', () => {
     expect(callbackSpy).toHaveBeenCalledTimes(1)
     const transformedPayload = callbackSpy.mock.calls[0][0]
 
-    assert.equal(transformedPayload.schema, 'public')
-    assert.equal(transformedPayload.table, 'users')
-    assert.equal(transformedPayload.eventType, 'INSERT')
-    assert.equal(transformedPayload.commit_timestamp, '2023-01-01T00:00:00Z')
-    assert.deepEqual(transformedPayload.new, { id: 1, name: 'test' })
-    assert.deepEqual(transformedPayload.errors, [])
+    expect(transformedPayload.schema).toBe('public')
+    expect(transformedPayload.table).toBe('users')
+    expect(transformedPayload.eventType).toBe('INSERT')
+    expect(transformedPayload.commit_timestamp).toBe('2023-01-01T00:00:00Z')
+    expect(transformedPayload.new).toStrictEqual({ id: 1, name: 'test' })
+    expect(transformedPayload.errors).toStrictEqual([])
   })
 
   test('should pass through non-postgres payloads unchanged', () => {
     const callbackSpy = vi.fn()
 
-    // Add regular binding using the internal structure
-    channel.bindings.test_event = [
-      {
-        type: 'test_event',
-        filter: {},
-        callback: callbackSpy,
-      },
-    ]
+    // @ts-ignore type of event not supported
+    channel.on('test_event', {}, callbackSpy)
 
     // Trigger with regular payload
     const originalPayload = { event: 'test', data: 'simple' }
-    channel._trigger('test_event', originalPayload, '1')
+    channel.channelAdapter.getChannel().trigger('test_event', originalPayload, '2', '1')
 
     // Verify callback received original payload unchanged
-    expect(callbackSpy).toHaveBeenCalledWith(originalPayload, '1')
+    expect(callbackSpy).toHaveBeenCalledWith(originalPayload, '2', '1')
   })
 
   test('should transform UPDATE/DELETE postgres changes with old_record data', () => {
     const callbackSpy = vi.fn()
 
-    // Add postgres_changes binding
-    channel.bindings.postgres_changes = [
-      {
-        type: 'postgres_changes',
-        filter: { event: '*', schema: 'public', table: 'users' },
-        callback: callbackSpy,
-      },
-    ]
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, callbackSpy)
 
     // Test UPDATE event with old_record
-    channel._trigger(
+    channel.channelAdapter.getChannel().trigger(
       'postgres_changes',
       {
         ids: ['update123'],
@@ -652,13 +636,13 @@ describe('PostgreSQL payload transformation', () => {
     expect(callbackSpy).toHaveBeenCalledTimes(1)
     const updatePayload = callbackSpy.mock.calls[0][0]
 
-    assert.equal(updatePayload.eventType, 'UPDATE')
-    assert.deepEqual(updatePayload.new, { id: 1, name: 'updated' })
-    assert.deepEqual(updatePayload.old, { id: 1, name: 'original' }) // This tests lines 873-877
+    expect(updatePayload.eventType).toBe('UPDATE')
+    expect(updatePayload.new).toStrictEqual({ id: 1, name: 'updated' })
+    expect(updatePayload.old).toStrictEqual({ id: 1, name: 'original' })
 
     // Test DELETE event with old_record
     callbackSpy.mockClear()
-    channel._trigger(
+    channel.channelAdapter.getChannel().trigger(
       'postgres_changes',
       {
         ids: ['delete123'],
@@ -682,7 +666,7 @@ describe('PostgreSQL payload transformation', () => {
     expect(callbackSpy).toHaveBeenCalledTimes(1)
     const deletePayload = callbackSpy.mock.calls[0][0]
 
-    assert.equal(deletePayload.eventType, 'DELETE')
-    assert.deepEqual(deletePayload.old, { id: 2, name: 'deleted' }) // This tests lines 873-877
+    expect(deletePayload.eventType).toBe('DELETE')
+    expect(deletePayload.old).toStrictEqual({ id: 2, name: 'deleted' })
   })
 })
