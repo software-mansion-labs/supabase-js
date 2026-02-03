@@ -2,45 +2,55 @@ import assert from 'assert'
 import { describe, beforeEach, afterEach, test, vi, expect } from 'vitest'
 import RealtimeChannel from '../src/RealtimeChannel'
 import { CHANNEL_STATES } from '../src/lib/constants'
-import { setupRealtimeTest, cleanupRealtimeTest, TestSetup } from './helpers/setup'
+import { setupRealtimeTest, TestSetup, waitForChannelSubscribed } from './helpers/setup'
 
 const defaultTimeout = 1000
 
 let channel: RealtimeChannel
 let testSetup: TestSetup
 
+const topic = 'test-postgres-validation'
+const phxTopic = 'realtime:test-postgres-validation'
+
 beforeEach(() => {
   testSetup = setupRealtimeTest({
     useFakeTimers: true,
     timeout: defaultTimeout,
+    socketHandlers: {
+      phx_join: () => {},
+    },
   })
-  channel = testSetup.socket.channel('test-postgres-validation')
+  channel = testSetup.client.channel(topic)
 })
 
 afterEach(() => {
-  cleanupRealtimeTest(testSetup)
+  testSetup.cleanup()
   vi.restoreAllMocks()
   channel.unsubscribe()
 })
 
 describe('PostgreSQL subscription validation', () => {
-  test('should handle subscription when no postgres bindings exist', () => {
+  test('should handle subscription when no postgres bindings exist', async () => {
     // No postgres_changes bindings added
 
     channel.subscribe()
 
-    // Simulate server response with no postgres changes
-    const mockServerResponse = {}
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    const serverResponse = {}
 
-    // Should successfully subscribe even without postgres bindings
-    assert.equal(channel.state, CHANNEL_STATES.joined)
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: phxTopic,
+        event: 'phx_reply',
+        payload: { status: 'ok', response: serverResponse },
+        ref: channel.joinPush.ref,
+      })
+    )
+
+    await waitForChannelSubscribed(channel)
   })
 
-  test('should successfully subscribe with matching postgres changes', () => {
+  test('should successfully subscribe with matching postgres changes', async () => {
     const callbackSpy1 = vi.fn()
     const callbackSpy2 = vi.fn()
 
@@ -67,7 +77,7 @@ describe('PostgreSQL subscription validation', () => {
     )
 
     // Simulate server response during subscription
-    const mockServerResponse = {
+    const serverResponse = {
       postgres_changes: [
         {
           event: 'INSERT',
@@ -88,20 +98,24 @@ describe('PostgreSQL subscription validation', () => {
 
     channel.subscribe()
 
-    // Simulate successful subscription response with server IDs
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: phxTopic,
+        event: 'phx_reply',
+        ref: channel.joinPush.ref,
+        payload: { status: 'ok', response: serverResponse },
+      })
+    )
 
+    await waitForChannelSubscribed(channel)
     // Verify channel is subscribed and bindings are enriched with server IDs
-    assert.equal(channel.state, CHANNEL_STATES.joined)
-    assert.equal(channel.bindings.postgres_changes.length, 2)
-    assert.equal(channel.bindings.postgres_changes[0].id, 'server-id-1')
-    assert.equal(channel.bindings.postgres_changes[1].id, 'server-id-2')
+    expect(channel.bindings.postgres_changes.length).toBe(2)
+    expect(channel.bindings.postgres_changes[0].id).toBe('server-id-1')
+    expect(channel.bindings.postgres_changes[1].id).toBe('server-id-2')
   })
 
-  test('should handle subscription errors for mismatched postgres changes', () => {
+  test('should handle subscription errors for mismatched postgres changes', async () => {
     const errorCallbackSpy = vi.fn()
 
     // Subscribe with postgres_changes binding
@@ -116,7 +130,7 @@ describe('PostgreSQL subscription validation', () => {
     )
 
     // Simulate server response with mismatched changes
-    const mockServerResponse = {
+    const serverResponse = {
       postgres_changes: [
         {
           event: 'UPDATE', // Different event from client binding
@@ -129,15 +143,21 @@ describe('PostgreSQL subscription validation', () => {
 
     channel.subscribe(errorCallbackSpy)
 
-    // Simulate subscription response that should cause error due to mismatch
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit(
+      'message',
+      JSON.stringify({
+        topic: phxTopic,
+        event: 'phx_reply',
+        ref: channel.joinPush.ref,
+        payload: { status: 'ok', response: serverResponse },
+      })
+    )
 
     // Should call error callback and set errored state
-    expect(errorCallbackSpy).toHaveBeenCalledWith('CHANNEL_ERROR', expect.any(Error))
-    assert.equal(channel.state, CHANNEL_STATES.errored)
+    await vi.waitFor(() =>
+      expect(errorCallbackSpy).toHaveBeenCalledWith('CHANNEL_ERROR', expect.any(Error))
+    )
+    expect(channel.state).toBe(CHANNEL_STATES.errored)
   })
 })
 
