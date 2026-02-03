@@ -29,23 +29,22 @@ afterEach(() => {
   channel.unsubscribe()
 })
 
+function phxJoinReply(channel: RealtimeChannel, response: Object, status: 'ok' | 'error' = 'ok') {
+  return JSON.stringify({
+    topic: channel.topic,
+    ref: channel.joinPush.ref,
+    event: 'phx_reply',
+    payload: { status, response },
+  })
+}
+
 describe('PostgreSQL subscription validation', () => {
   test('should handle subscription when no postgres bindings exist', async () => {
     // No postgres_changes bindings added
 
     channel.subscribe()
 
-    const serverResponse = {}
-
-    testSetup.mockServer.emit(
-      'message',
-      JSON.stringify({
-        topic: phxTopic,
-        event: 'phx_reply',
-        payload: { status: 'ok', response: serverResponse },
-        ref: channel.joinPush.ref,
-      })
-    )
+    testSetup.mockServer.emit('message', phxJoinReply(channel, {}))
 
     await waitForChannelSubscribed(channel)
   })
@@ -98,15 +97,7 @@ describe('PostgreSQL subscription validation', () => {
 
     channel.subscribe()
 
-    testSetup.mockServer.emit(
-      'message',
-      JSON.stringify({
-        topic: phxTopic,
-        event: 'phx_reply',
-        ref: channel.joinPush.ref,
-        payload: { status: 'ok', response: serverResponse },
-      })
-    )
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
     await waitForChannelSubscribed(channel)
     // Verify channel is subscribed and bindings are enriched with server IDs
@@ -143,15 +134,7 @@ describe('PostgreSQL subscription validation', () => {
 
     channel.subscribe(errorCallbackSpy)
 
-    testSetup.mockServer.emit(
-      'message',
-      JSON.stringify({
-        topic: phxTopic,
-        event: 'phx_reply',
-        ref: channel.joinPush.ref,
-        payload: { status: 'ok', response: serverResponse },
-      })
-    )
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
     // Should call error callback and set errored state
     await vi.waitFor(() =>
@@ -162,7 +145,7 @@ describe('PostgreSQL subscription validation', () => {
 })
 
 describe('PostgreSQL binding matching behavior', () => {
-  test('should handle null/undefined server changes gracefully', () => {
+  test('should handle null/undefined server changes gracefully', async () => {
     const callbackSpy = vi.fn()
 
     channel.on(
@@ -177,18 +160,13 @@ describe('PostgreSQL binding matching behavior', () => {
 
     channel.subscribe()
 
-    // Simulate server response with no postgres_changes
-    const mockServerResponse = {}
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit('message', phxJoinReply(channel, {}))
 
     // Should complete successfully
-    assert.equal(channel.state, CHANNEL_STATES.joined)
+    await waitForChannelSubscribed(channel)
   })
 
-  test('should match exact postgres changes correctly', () => {
+  test('should match exact postgres changes correctly', async () => {
     const callbackSpy = vi.fn()
 
     // Subscribe with specific filter
@@ -206,7 +184,7 @@ describe('PostgreSQL binding matching behavior', () => {
     channel.subscribe()
 
     // Simulate server response with matching change
-    const mockServerResponse = {
+    const serverResponse = {
       postgres_changes: [
         {
           event: 'INSERT',
@@ -218,17 +196,14 @@ describe('PostgreSQL binding matching behavior', () => {
       ],
     }
 
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
     // Should match and enrich binding
-    assert.equal(channel.state, CHANNEL_STATES.joined)
-    assert.equal(channel.bindings.postgres_changes[0].id, 'server-id-1')
+    await waitForChannelSubscribed(channel)
+    expect(channel.bindings.postgres_changes[0].id).toBe('server-id-1')
   })
 
-  test('should match postgres changes when filter is undefined', () => {
+  test('should match postgres changes when filter is undefined', async () => {
     const callbackSpy = vi.fn()
 
     // Subscribe without specific filter
@@ -245,7 +220,7 @@ describe('PostgreSQL binding matching behavior', () => {
     channel.subscribe()
 
     // Simulate server response with matching change (no filter)
-    const mockServerResponse = {
+    const serverResponse = {
       postgres_changes: [
         {
           event: 'INSERT',
@@ -257,17 +232,14 @@ describe('PostgreSQL binding matching behavior', () => {
       ],
     }
 
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
     // Should match successfully
-    assert.equal(channel.state, CHANNEL_STATES.joined)
-    assert.equal(channel.bindings.postgres_changes[0].id, 'server-id-1')
+    await waitForChannelSubscribed(channel)
+    expect(channel.bindings.postgres_changes[0].id).toBe('server-id-1')
   })
 
-  test('should match postgres changes when server returns null for optional fields', () => {
+  test('should match postgres changes when server returns null for optional fields', async () => {
     const callbackSpy = vi.fn()
 
     channel.on(
@@ -282,7 +254,7 @@ describe('PostgreSQL binding matching behavior', () => {
 
     channel.subscribe()
 
-    const mockServerResponse = {
+    const serverResponse = {
       postgres_changes: [
         {
           event: 'INSERT',
@@ -294,16 +266,14 @@ describe('PostgreSQL binding matching behavior', () => {
       ],
     }
 
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
-    assert.equal(channel.state, CHANNEL_STATES.joined)
-    assert.equal(channel.bindings.postgres_changes[0].id, 'server-id-1')
+    // Should match successfully
+    await waitForChannelSubscribed(channel)
+    expect(channel.bindings.postgres_changes[0].id).toBe('server-id-1')
   })
 
-  test('should match postgres changes when server omits optional filter field', () => {
+  test('should match postgres changes when server omits optional filter field', async () => {
     const callbackSpy = vi.fn()
 
     channel.on(
@@ -318,7 +288,7 @@ describe('PostgreSQL binding matching behavior', () => {
 
     channel.subscribe()
 
-    const mockServerResponse = {
+    const serverResponse = {
       postgres_changes: [
         {
           event: '*',
@@ -329,13 +299,10 @@ describe('PostgreSQL binding matching behavior', () => {
       ],
     }
 
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
-    assert.equal(channel.state, CHANNEL_STATES.joined)
-    assert.equal(channel.bindings.postgres_changes[0].id, 'server-id-1')
+    await waitForChannelSubscribed(channel)
+    expect(channel.bindings.postgres_changes[0].id).toBe('server-id-1')
   })
 
   test.each([
@@ -385,22 +352,23 @@ describe('PostgreSQL binding matching behavior', () => {
         id: 'server-id',
       },
     },
-  ])('$description', ({ clientFilter, serverChange }) => {
+  ])('$description', async ({ clientFilter, serverChange }) => {
     const errorCallbackSpy = vi.fn()
 
+    // @ts-ignore simplified callback
     channel.on('postgres_changes', clientFilter, vi.fn())
     channel.subscribe(errorCallbackSpy)
 
     // Should call error callback when server change doesn't match client binding
-    const mockServerResponse = { postgres_changes: [serverChange] }
-    channel.joinPush._matchReceive({
-      status: 'ok',
-      response: mockServerResponse,
-    })
+    const serverResponse = { postgres_changes: [serverChange] }
+
+    testSetup.mockServer.emit('message', phxJoinReply(channel, serverResponse))
 
     // Should trigger error callback and set errored state
-    expect(errorCallbackSpy).toHaveBeenCalledWith('CHANNEL_ERROR', expect.any(Error))
-    assert.equal(channel.state, CHANNEL_STATES.errored)
+    await vi.waitFor(() =>
+      expect(errorCallbackSpy).toHaveBeenCalledWith('CHANNEL_ERROR', expect.any(Error))
+    )
+    expect(channel.state).toBe(CHANNEL_STATES.errored)
   })
 })
 
