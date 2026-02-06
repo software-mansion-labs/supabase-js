@@ -444,26 +444,6 @@ describe('Postgres Changes Trigger Tests', () => {
     )
   })
 
-  // TODO: Not sure if delete or add support
-  // test('triggers when type is insert, update, delete', () => {
-  //   const spy = vi.fn()
-
-  //   // @ts-ignore
-  //   channel.on('postgres_changes', { event: 'INSERT' }, spy)
-  //   // @ts-ignore
-  //   channel.on('postgres_changes', { event: 'UPDATE' }, spy)
-  //   // @ts-ignore
-  //   channel.on('postgres_changes', { event: 'DELETE' }, spy)
-  //   // @ts-ignore
-  //   channel.on('postgres_changes', { event: '*' }, spy)
-
-  //   channel._trigger('insert', { test: '123' }, '1')
-  //   channel._trigger('update', { test: '123' }, '2')
-  //   channel._trigger('delete', { test: '123' }, '3')
-
-  //   expect(spy).toHaveBeenCalledTimes(6)
-  // })
-
   test('should trigger postgres_changes callback when ID matches', () => {
     const callbackSpy = vi.fn()
 
