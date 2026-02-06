@@ -1,8 +1,7 @@
-import { beforeEach, afterEach, describe, test, expect, vi } from "vitest"
-import { setupRealtimeTest, type TestSetup } from "./helpers/setup"
-import type RealtimeChannel from "../src/RealtimeChannel"
-import { CHANNEL_STATES } from "../src/lib/constants"
-import { createHash } from "crypto"
+import { beforeEach, afterEach, describe, test, expect, vi } from 'vitest'
+import { setupRealtimeTest, type TestSetup } from './helpers/setup'
+import type RealtimeChannel from '../src/RealtimeChannel'
+import { CHANNEL_STATES } from '../src/lib/constants'
 
 let testSetup: TestSetup
 let channel: RealtimeChannel
@@ -14,7 +13,7 @@ beforeEach(async () => {
   testSetup.connect()
   await vi.waitFor(() => expect(testSetup.emitters.connected).toHaveBeenCalled())
 
-  channel = testSetup.client.channel("test-integration")
+  channel = testSetup.client.channel('test-integration')
 })
 
 afterEach(() => {
@@ -41,7 +40,7 @@ describe('Complete lifecycle integration', () => {
     const result = await channel.unsubscribe()
     unsubscriptionResult = result
 
-    expect(['ok', 'timed out', 'error'].includes(unsubscriptionResult)).toBeTruthy()
+    expect(unsubscriptionResult).toBe('ok')
     expect(channel.state).toBe(CHANNEL_STATES.closed)
   })
 
@@ -53,13 +52,14 @@ describe('Complete lifecycle integration', () => {
     // Set up multiple event types
     channel.on('broadcast', { event: 'test' }, broadcastSpy)
     channel.on('presence', { event: 'sync' }, presenceSpy)
-    // FIXME:
-    channel.on('postgres_changes', { event: "insert" }, postgresSpy)
+    channel.on('postgres_changes', { event: 'INSERT', schema: 'public' }, postgresSpy)
 
     // Trigger all event types
     channel.channelAdapter.getChannel().trigger('broadcast', { event: 'test' })
     channel.channelAdapter.getChannel().trigger('presence', { event: 'sync' })
-    channel.channelAdapter.getChannel().trigger('postgres_changes', { event: "insert", test: 'data' })
+    channel.channelAdapter
+      .getChannel()
+      .trigger('postgres_changes', { event: 'insert', test: 'data' })
 
     expect(broadcastSpy).toHaveBeenCalledTimes(1)
     expect(presenceSpy).toHaveBeenCalledTimes(1)
@@ -88,7 +88,7 @@ describe('Error recovery integration', () => {
 describe('Complex message flow integration', () => {
   test('should handle rapid message sending and receiving', () => {
     channel.subscribe()
-    vi.waitFor(() => expect(channel.state).toBe("joined"))
+    vi.waitFor(() => expect(channel.state).toBe('joined'))
 
     const pushSpy = vi.spyOn(channel.channelAdapter.getChannel(), 'push')
 
