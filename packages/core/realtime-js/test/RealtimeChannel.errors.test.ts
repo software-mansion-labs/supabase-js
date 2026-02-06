@@ -108,21 +108,9 @@ describe('Error Recovery & Resilience', () => {
         return originalOnMessage.call(channel, event, payload, ref)
       }
 
-      let thrownError: any
-
-      try {
-        // Simulate malformed message
+      expect(() => {
         channel.channelAdapter.getChannel().trigger('test')
-      } catch (error) {
-        // Error should be caught and handled
-        expect(error instanceof Error)
-
-        // @ts-ignore error is without type
-        expect(error.message).toBe('Malformed payload')
-        thrownError = error
-      }
-
-      expect(thrownError).toBeDefined()
+      }).toThrowError('Malformed payload')
 
       channel.channelAdapter.getChannel().onMessage = originalOnMessage
     })

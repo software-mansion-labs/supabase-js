@@ -772,7 +772,7 @@ export default class RealtimeChannel {
     this.channelAdapter.updateFilterBindings((binding, payload: any, ref) => {
       const typeLower = binding.event.toLocaleLowerCase()
 
-      if (this._notChannelEvent(typeLower, ref)) {
+      if (this._notThisChannelEvent(typeLower, ref)) {
         return false
       }
 
@@ -803,10 +803,10 @@ export default class RealtimeChannel {
     })
   }
 
-  private _notChannelEvent(event: string, ref?: string | null) {
+  private _notThisChannelEvent(event: string, ref?: string | null) {
     const { close, error, leave, join } = CHANNEL_EVENTS
     const events: string[] = [close, error, leave, join]
-    return ref && events.indexOf(event) != -1 && ref !== this.joinPush.ref
+    return ref && events.includes(event) && ref !== this.joinPush.ref
   }
 
   /** @internal */

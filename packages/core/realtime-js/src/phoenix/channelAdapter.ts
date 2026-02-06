@@ -72,24 +72,24 @@ export default class ChannelAdapter {
   }
 
   push(event: string, payload: { [key: string]: any }, timeout?: number): Push {
-    try {
-      const push = this.channel.push(event, payload, timeout)
+    let push: Push
 
-      if (this.channel.pushBuffer.length > MAX_PUSH_BUFFER_SIZE) {
-        const removedPush = this.channel.pushBuffer.shift()
-        if (removedPush) {
-          removedPush.cancelTimeout()
-          this.socket.log(
-            'channel',
-            `discarded push due to buffer overflow: ${removedPush.event}`,
-            removedPush.payload()
-          )
-        }
-      }
-      return push
+    try {
+      push = this.channel.push(event, payload, timeout)
     } catch (error) {
       throw `tried to push '${event}' to '${this.channel.topic}' before joining. Use channel.subscribe() before pushing events`
     }
+
+    if (this.channel.pushBuffer.length > MAX_PUSH_BUFFER_SIZE) {
+      const removedPush = this.channel.pushBuffer.shift()!
+      removedPush.cancelTimeout()
+      this.socket.log(
+        'channel',
+        `discarded push due to buffer overflow: ${removedPush.event}`,
+        removedPush.payload()
+      )
+    }
+    return push
   }
 
   updateJoinPayload(payload: Record<string, any>) {
