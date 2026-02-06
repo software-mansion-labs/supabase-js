@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, test, expect, vi } from 'vitest'
-import { setupRealtimeTest, type TestSetup } from './helpers/setup'
+import { setupRealtimeTest, waitForChannelSubscribed, type TestSetup } from './helpers/setup'
 import type RealtimeChannel from '../src/RealtimeChannel'
 import { CHANNEL_STATES } from '../src/lib/constants'
 
@@ -11,7 +11,7 @@ beforeEach(async () => {
     useFakeTimers: true,
   })
   testSetup.connect()
-  await vi.waitFor(() => expect(testSetup.emitters.connected).toHaveBeenCalled())
+  await testSetup.socketConnected()
 
   channel = testSetup.client.channel('test-integration')
 })
@@ -71,7 +71,7 @@ describe('Error recovery integration', () => {
   test('should recover from subscription errors and retry', () => {
     let statusUpdates: string[] = []
 
-    channel.subscribe((status, error) => {
+    channel.subscribe((status) => {
       statusUpdates.push(status)
     })
 
@@ -86,9 +86,9 @@ describe('Error recovery integration', () => {
 })
 
 describe('Complex message flow integration', () => {
-  test('should handle rapid message sending and receiving', () => {
+  test('should handle rapid message sending and receiving', async () => {
     channel.subscribe()
-    vi.waitFor(() => expect(channel.state).toBe('joined'))
+    await waitForChannelSubscribed(channel)
 
     const pushSpy = vi.spyOn(channel.channelAdapter.getChannel(), 'push')
 
