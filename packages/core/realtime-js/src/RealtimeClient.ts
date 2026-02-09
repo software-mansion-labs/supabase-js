@@ -291,6 +291,8 @@ export default class RealtimeClient {
     }
     return await this.socketAdapter.disconnect(
       () => {
+        clearInterval(this.heartbeatTimer)
+        this.socketAdapter.getSocket().clearHeartbeats()
         this._terminateWorker()
       },
       code,
@@ -586,13 +588,9 @@ export default class RealtimeClient {
         this._authPromise ||
         (this.accessToken && !this.accessTokenValue ? this.setAuth() : Promise.resolve())
 
-      authPromise
-        .then(() => {
-          this.log('auth', 'auth completed on connect')
-        })
-        .catch((e) => {
-          this.log('error', 'error waiting for auth on connect', e)
-        })
+      authPromise.catch((e) => {
+        this.log('error', 'error waiting for auth on connect', e)
+      })
 
       if (this.worker && !this.workerRef) {
         this._startWorkerHeartbeat()
@@ -635,6 +633,7 @@ export default class RealtimeClient {
     this.workerRef.onerror = (error) => {
       this.log('worker', 'worker error', (error as ErrorEvent).message)
       this._terminateWorker()
+      this.disconnect()
     }
     this.workerRef.onmessage = (event) => {
       if (event.data.event === 'keepAlive') {
