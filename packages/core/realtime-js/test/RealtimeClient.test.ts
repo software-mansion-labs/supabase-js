@@ -206,58 +206,6 @@ describe('Additional Coverage Tests', () => {
     })
   })
 
-  // TODO: move to pheonix
-  // describe('leaveOpenTopic', () => {
-  //   test('should leave duplicate open topic', async () => {
-  //     const topic = 'realtime:test-topic'
-  //     const channel = testSetup.client.channel('test-topic')
-  //     channel.subscribe()
-  //     await waitForChannelSubscribed(channel)
-
-  //     const unsubscribeSpy = vi.spyOn(channel, 'unsubscribe')
-  //     const logSpy = vi.spyOn(testSetup.client, 'log')
-
-  //     testSetup.client._leaveOpenTopic(topic)
-
-  //     expect(logSpy).toHaveBeenCalledWith('transport', `leaving duplicate topic "${topic}"`)
-  //     expect(unsubscribeSpy).toHaveBeenCalled()
-  //   })
-
-  //   test('should leave duplicate joining topic', () => {
-  //     const topic = 'realtime:test-topic'
-  //     const channel = testSetup.socket.channel('test-topic')
-
-  //     // Mock channel as joining
-  //     channel._isJoined = () => false
-  //     channel._isJoining = () => true
-
-  //     const unsubscribeSpy = vi.spyOn(channel, 'unsubscribe')
-  //     const logSpy = vi.spyOn(testSetup.socket, 'log')
-
-  //     testSetup.socket._leaveOpenTopic(topic)
-
-  //     expect(logSpy).toHaveBeenCalledWith('transport', `leaving duplicate topic "${topic}"`)
-  //     expect(unsubscribeSpy).toHaveBeenCalled()
-  //   })
-
-  //   test('should not leave topic that is not joined or joining', () => {
-  //     const topic = 'realtime:test-topic'
-  //     const channel = testSetup.socket.channel('test-topic')
-
-  //     // Mock channel as neither joined nor joining
-  //     channel._isJoined = () => false
-  //     channel._isJoining = () => false
-
-  //     const unsubscribeSpy = vi.spyOn(channel, 'unsubscribe')
-  //     const logSpy = vi.spyOn(testSetup.socket, 'log')
-
-  //     testSetup.socket._leaveOpenTopic(topic)
-
-  //     expect(logSpy).not.toHaveBeenCalled()
-  //     expect(unsubscribeSpy).not.toHaveBeenCalled()
-  //   })
-  // })
-
   describe('message handling with heartbeat reference', () => {
     test('should clear pending heartbeat reference on matching message', () => {
       testSetup.client.socketAdapter.getSocket().pendingHeartbeatRef = 'test-ref-123'
@@ -378,50 +326,6 @@ describe('Additional Coverage Tests', () => {
       global.URL.createObjectURL = originalCreateObjectURL
     })
   })
-
-  // FIXME: Moved to `phoenix`
-  // describe('_appendParams edge cases', () => {
-  //   test('should return URL unchanged when params is empty', () => {
-  //     const url = 'ws://example.com/socket'
-  //     const result = (testSetup.socket as any)._appendParams(url, {})
-  //     expect(result).toBe(url)
-  //   })
-
-  //   test('should use & when URL already has query params', () => {
-  //     const url = 'ws://example.com/socket?existing=param'
-  //     const result = (testSetup.socket as any)._appendParams(url, {
-  //       new: 'param',
-  //     })
-  //     expect(result).toBe('ws://example.com/socket?existing=param&new=param')
-  //   })
-  // })
-
-  // describe('_setupConnectionHandlers edge case', () => {
-  //   test('should not throw with no connection', () => {
-  //     testSetup.client.socketAdapter.getSocket().conn = null
-
-  //     // Should not throw when called with no connection
-  //     expect(() => {
-  //       // @ts-ignore accessing private method
-  //       testSetup.client._setupConnectionHandlers()
-  //     }).not.toThrow()
-  //   })
-  // })
-
-  // FIXME: No such function
-  // describe('_startHeartbeat with existing timer', () => {
-  //   test('should clear existing heartbeat timer before starting new one', () => {
-  //     // Set up existing timer
-  //     testSetup.socket.heartbeatTimer = setInterval(() => {}, 1000)
-  //     const existingTimer = testSetup.socket.heartbeatTimer
-
-  //     const clearIntervalSpy = vi.spyOn(global, 'clearInterval')
-
-  //     ;(testSetup.socket as any)._startHeartbeat()
-
-  //     expect(clearIntervalSpy).toHaveBeenCalledWith(existingTimer)
-  //   })
-  // })
 
   describe('reconnectAfterMs fallback', () => {
     test('should use default fallback when tries exceed available intervals', () => {
