@@ -202,7 +202,6 @@ describe('auth during connection states', () => {
     const initialToken = utils.generateJWT('1h')
     const refreshedToken = utils.generateJWT('2h')
     const tokens = [initialToken, refreshedToken]
-
     let callCount = 0
 
     const accessToken = vi.fn(() => Promise.resolve(tokens[callCount++]))

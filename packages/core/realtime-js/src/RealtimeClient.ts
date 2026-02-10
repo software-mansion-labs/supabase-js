@@ -227,7 +227,6 @@ export default class RealtimeClient {
     this.httpEndpoint = httpEndpointURL(endPoint)
 
     this.fetch = this._resolveFetch(options?.fetch)
-    // this._setupReconnectionTimer()
   }
 
   /**
