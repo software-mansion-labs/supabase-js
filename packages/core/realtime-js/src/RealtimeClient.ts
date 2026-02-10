@@ -570,21 +570,6 @@ export default class RealtimeClient {
     }
   }
 
-  /**
-   * Setup reconnection timer with proper configuration
-   * @internal
-   */
-  private _setupReconnectionTimer(): void {
-    this.reconnectTimer = new Timer(async () => {
-      setTimeout(async () => {
-        await this._waitForAuthIfNeeded()
-        if (!this.isConnected()) {
-          this.connect()
-        }
-      }, CONNECTION_TIMEOUTS.RECONNECT_DELAY)
-    }, this.reconnectAfterMs)
-  }
-
   private _setupConnectionHandlers(): void {
     this.socketAdapter.onOpen(() => {
       const authPromise =
@@ -673,6 +658,13 @@ export default class RealtimeClient {
     return result_url
   }
 
+  private async _reconnectAuth() {
+    await this._waitForAuthIfNeeded()
+    if (!this.isConnected()) {
+      this.connect()
+    }
+  }
+
   /**
    * Initialize socket options with defaults
    * @internal
@@ -719,6 +711,8 @@ export default class RealtimeClient {
 
     result.encode = options?.encode ?? defaultEncode
     result.decode = options?.decode ?? defaultDecode
+
+    result.beforeReconnect = this._reconnectAuth.bind(this)
 
     if (options?.logLevel || options?.log_level) {
       this.logLevel = options.logLevel || options.log_level

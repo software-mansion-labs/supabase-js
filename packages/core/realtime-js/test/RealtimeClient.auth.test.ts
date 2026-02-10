@@ -202,15 +202,13 @@ describe('auth during connection states', () => {
     const initialToken = utils.generateJWT('1h')
     const refreshedToken = utils.generateJWT('2h')
     const tokens = [initialToken, refreshedToken]
+
     let callCount = 0
 
     const accessToken = vi.fn(() => Promise.resolve(tokens[callCount++]))
 
     const testSetup = setupRealtimeTest({
       accessToken,
-      onConnectionCallback: (socket) => {
-        socket.close()
-      },
     })
 
     testSetup.connect()
@@ -224,11 +222,15 @@ describe('auth during connection states', () => {
 
     testSetup.client.reconnectTimer!.callback()
 
+    await testSetup.socketClosed()
+
     // Wait for the refreshed token to be set
     await vi.waitFor(() => {
-      expect(testSetup.client.accessTokenValue).toBe(refreshedToken)
       expect(accessToken).toHaveBeenCalledTimes(1)
+      expect(testSetup.client.accessTokenValue).toBe(refreshedToken)
     })
+
+    await testSetup.socketConnected()
 
     testSetup.cleanup()
   })

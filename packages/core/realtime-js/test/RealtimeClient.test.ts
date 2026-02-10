@@ -98,8 +98,6 @@ describe('Additional Coverage Tests', () => {
     })
   })
 
-  // TODO: JEBANY REACONNECT TIMER JEST W DWOCH MIEJSCACH I PIERDOLI TO TESTY JAK SIE UZYJE JEDNEGO CHUJ PIERDOLONY
-
   describe('heartbeat timeout reconnection fallback', () => {
     test('should trigger reconnection fallback after heartbeat timeout', async () => {
       testSetup.client.connect()
