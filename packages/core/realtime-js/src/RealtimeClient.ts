@@ -686,8 +686,8 @@ export default class RealtimeClient {
         return RECONNECT_INTERVALS[tries - 1] || DEFAULT_RECONNECT_FALLBACK
       })
 
-    var defaultEncode: Encode<void>
-    var defaultDecode: Decode<void>
+    let defaultEncode: Encode<void>
+    let defaultDecode: Decode<void>
 
     switch (result.vsn) {
       case VSN_1_0_0:
