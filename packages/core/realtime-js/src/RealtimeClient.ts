@@ -329,11 +329,13 @@ export default class RealtimeClient {
    * Unsubscribes and removes all channels
    */
   async removeAllChannels(): Promise<RealtimeRemoveChannelResponse[]> {
-    const values_1 = await Promise.all(this.channels.map(async (channel) => {
-      const result = await channel.unsubscribe()
-      channel.teardown()
-      return result;
-    }))
+    const values_1 = await Promise.all(
+      this.channels.map(async (channel) => {
+        const result = await channel.unsubscribe()
+        channel.teardown()
+        return result
+      })
+    )
     this.channels = []
     this.disconnect()
     return values_1
