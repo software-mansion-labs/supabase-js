@@ -39,7 +39,7 @@ export type RealtimeMessage = {
 
 export type RealtimeRemoveChannelResponse = 'ok' | 'timed out' | 'error'
 export type HeartbeatStatus = 'sent' | 'ok' | 'error' | 'timeout' | 'disconnected'
-export type HeartbeatTimer = ReturnType<typeof setInterval> | undefined
+export type HeartbeatTimer = ReturnType<typeof setTimeout> | undefined
 
 // Connection-related constants
 const CONNECTION_TIMEOUTS = {
@@ -293,8 +293,7 @@ export default class RealtimeClient {
     }
     return await this.socketAdapter.disconnect(
       () => {
-        clearInterval(this.heartbeatTimer)
-        this.socketAdapter.getSocket().clearHeartbeats()
+        clearInterval(this._workerHeartbeatTimer)
         this._terminateWorker()
       },
       code,
