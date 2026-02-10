@@ -103,7 +103,6 @@ export default class RealtimeClient {
   params?: { [key: string]: string } = {}
 
   ref: number = 0
-  reconnectTimer: Timer | null = null
 
   logLevel?: LogLevel
 
@@ -146,6 +145,10 @@ export default class RealtimeClient {
       return this._pendingWorkerHeartbeatRef
     }
     return this.socketAdapter.pendingHeartbeatRef
+  }
+
+  get reconnectTimer() {
+    return this.socketAdapter.reconnectTimer
   }
 
   get vsn() {
@@ -224,7 +227,7 @@ export default class RealtimeClient {
     this.httpEndpoint = httpEndpointURL(endPoint)
 
     this.fetch = this._resolveFetch(options?.fetch)
-    this._setupReconnectionTimer()
+    // this._setupReconnectionTimer()
   }
 
   /**

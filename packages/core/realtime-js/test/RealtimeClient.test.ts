@@ -98,38 +98,28 @@ describe('Additional Coverage Tests', () => {
     })
   })
 
-  // FIXME: Don't know if fix or remove
-  // describe('heartbeat timeout reconnection fallback', () => {
-  //   test('should trigger reconnection fallback after heartbeat timeout', async () => {
-  //     testSetup.client.connect()
+  // TODO: JEBANY REACONNECT TIMER JEST W DWOCH MIEJSCACH I PIERDOLI TO TESTY JAK SIE UZYJE JEDNEGO CHUJ PIERDOLONY
 
-  //     // Set up a pending heartbeat
-  //     testSetup.socket.pendingHeartbeatRef = 'test-ref'
+  describe('heartbeat timeout reconnection fallback', () => {
+    test('should trigger reconnection fallback after heartbeat timeout', async () => {
+      testSetup.client.connect()
+      await testSetup.socketConnected()
 
-  //     // Mock isConnected to return false after timeout
-  //     let isConnectedCallCount = 0
-  //     const originalIsConnected = testSetup.socket.isConnected
-  //     testSetup.socket.isConnected = () => {
-  //       isConnectedCallCount++
-  //       return isConnectedCallCount <= 1 // First call returns true, subsequent false
-  //     }
+      // Set up a pending heartbeat
+      testSetup.client.socketAdapter.getSocket().pendingHeartbeatRef = 'test-ref'
 
-  //     // Mock reconnectTimer
-  //     const scheduleTimeoutSpy = vi.spyOn(testSetup.socket.reconnectTimer!, 'scheduleTimeout')
+      // Mock reconnectTimer
+      const scheduleTimeoutSpy = vi.spyOn(testSetup.client.reconnectTimer!, 'scheduleTimeout')
 
-  //     // Trigger heartbeat timeout
-  //     await testSetup.socket.sendHeartbeat()
+      // Trigger heartbeat timeout
+      await testSetup.client.sendHeartbeat()
 
-  //     // Wait for fallback timeout
-  //     await new Promise((resolve) => setTimeout(resolve, 150))
+      await testSetup.socketClosed()
 
-  //     // Verify reconnection was scheduled
-  //     expect(scheduleTimeoutSpy).toHaveBeenCalled()
-
-  //     // Restore original method
-  //     testSetup.socket.isConnected = originalIsConnected
-  //   })
-  // })
+      // Verify reconnection was scheduled
+      await vi.waitFor(() => expect(scheduleTimeoutSpy).toHaveBeenCalled())
+    })
+  })
 
   describe('Node.js fetch fallback', () => {
     test('should handle missing fetch in Node.js environment', () => {
