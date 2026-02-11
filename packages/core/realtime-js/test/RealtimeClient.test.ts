@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { WebSocket as MockWebSocket } from 'mock-socket'
-import RealtimeClient from '../src/RealtimeClient'
+import RealtimeClient, { WebSocketLikeConstructor } from '../src/RealtimeClient'
 import { SOCKET_STATES } from '../src/lib/constants'
 import { DEFAULT_API_KEY, setupRealtimeTest, TestSetup } from './helpers/setup'
 
@@ -21,29 +21,40 @@ afterEach(() => {
 })
 
 describe('Additional Coverage Tests', () => {
-  describe('Node.js WebSocket error handling', () => {
-    test('should provide helpful error message for Node.js WebSocket errors', async () => {
+  describe('Node.js WebSocket error handling', async () => {
+    const WebSocketFactoryModule = await import('../src/lib/websocket-factory')
+    const WebSocketFactory = WebSocketFactoryModule.default
+    const originalCreateWebSocket = WebSocketFactory.getWebSocketConstructor
+
+    beforeEach(() => {
+      class MockWS {
+        constructor(address: string | URL) {
+          throw new Error('Node.js environment detected')
+        }
+      }
+
       // Mock WebSocketFactory to throw Node.js specific error
-      const WebSocketFactoryModule = await import('../src/lib/websocket-factory')
-      const WebSocketFactory = WebSocketFactoryModule.default
-      const originalCreateWebSocket = WebSocketFactory.getWebSocketConstructor
-      WebSocketFactory.getWebSocketConstructor = vi.fn(() => {
-        throw new Error('Node.js environment detected')
+      // @ts-ignore simplified typing
+      WebSocketFactory.getWebSocketConstructor = () => MockWS
+    })
+
+    afterEach(() => {
+      WebSocketFactory.getWebSocketConstructor = originalCreateWebSocket
+    })
+
+    test('should provide helpful error message for Node.js WebSocket errors', async () => {
+      // Create a socket without transport to trigger WebSocketFactory usage
+      const socketWithoutTransport = new RealtimeClient(testSetup.realtimeUrl, {
+        params: { apikey: '123456789' },
       })
 
       expect(() => {
-        // Create a socket without transport to trigger WebSocketFactory usage
-        const socketWithoutTransport = new RealtimeClient(testSetup.realtimeUrl, {
-          params: { apikey: '123456789' },
-        })
-
-        expect(() => {
-          socketWithoutTransport.connect()
-        }).toThrow(/To use Realtime in Node.js, you need to provide a WebSocket implementation/)
+        socketWithoutTransport.connect()
       }).toThrow(/Node.js environment detected/)
 
-      // Restore original method
-      WebSocketFactory.getWebSocketConstructor = originalCreateWebSocket
+      expect(() => {
+        socketWithoutTransport.connect()
+      }).toThrow(/To use Realtime in Node.js, you need to provide a WebSocket implementation/)
     })
   })
 

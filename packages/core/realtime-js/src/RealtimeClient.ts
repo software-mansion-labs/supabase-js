@@ -11,7 +11,6 @@ import {
 } from './lib/constants'
 
 import Serializer from './lib/serializer'
-import { Timer } from 'phoenix'
 import { httpEndpointURL } from './lib/transformers'
 import RealtimeChannel from './RealtimeChannel'
 import type { RealtimeChannelOptions } from './RealtimeChannel'
