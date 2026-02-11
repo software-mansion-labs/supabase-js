@@ -32,7 +32,7 @@ describe('disconnect', () => {
     expect(callback).not.toHaveBeenCalled()
   })
 
-  test('returns ok after good ', async () => {
+  test('returns ok after proper disconnection', async () => {
     testSetup.connect()
     await testSetup.socketConnected()
 
