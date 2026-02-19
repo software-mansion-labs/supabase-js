@@ -90,7 +90,7 @@ describe('Additional Coverage Tests', () => {
     test('should handle disconnect when connection close callback fires normally', async () => {
       testSetup.client.connect()
 
-      // Mock a connection that closes normally~
+      // Mock a connection that closes normally
       const mockConn = {
         close: vi.fn(() => {
           // Simulate immediate close callback
